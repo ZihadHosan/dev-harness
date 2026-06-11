@@ -1,0 +1,33 @@
+{
+  "name": "dev-harness",
+  "version": "0.1.0",
+  "description": "AI-native project harness — architecture map, planning board and health checks for any codebase",
+  "type": "module",
+  "bin": {
+    "dev-harness": "./init.mjs"
+  },
+  "scripts": {
+    "arch": "node harness/arch-map.mjs",
+    "arch:check": "node harness/arch-map.mjs --strict",
+    "arch:watch": "node harness/arch-serve.mjs"
+  },
+  "keywords": [
+    "developer-tools",
+    "ai",
+    "claude",
+    "llm",
+    "architecture",
+    "project-management",
+    "cli",
+    "planning",
+    "productivity",
+    "dx",
+    "code-health",
+    "agent"
+  ],
+  "author": "Zihad Hosan",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}

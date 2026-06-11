@@ -1,0 +1,4 @@
+node_modules/
+harness/arch-map.html
+harness/notes.json
+.env

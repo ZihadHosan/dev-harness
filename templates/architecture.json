@@ -1,0 +1,42 @@
+{
+  "name": "My Project",
+  "zones": [
+    {
+      "id": "frontend",
+      "label": "Frontend",
+      "sub": "src/",
+      "flowAfter": "API calls"
+    },
+    {
+      "id": "backend",
+      "label": "Backend",
+      "sub": "server/",
+      "flowAfter": "Database"
+    },
+    {
+      "id": "data",
+      "label": "Data",
+      "sub": "db/"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "app-entry",
+      "zone": "frontend",
+      "label": "App entry",
+      "path": "src/main.js",
+      "desc": "Application entry point.",
+      "assertions": [],
+      "todoMatch": ""
+    },
+    {
+      "id": "api-handler",
+      "zone": "backend",
+      "label": "API handler",
+      "path": "server/index.js",
+      "desc": "Main API handler.",
+      "assertions": [],
+      "todoMatch": ""
+    }
+  ]
+}
