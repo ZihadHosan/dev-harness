@@ -1,0 +1,26 @@
+{
+  "description": "Files the AI agent MUST read before answering any question about project status, priorities, or what needs to be fixed. Read ALL of them. No exceptions.",
+  "files": [
+    {
+      "path": "README.md",
+      "reason": "Project entry point — what the project is and how it works"
+    },
+    {
+      "path": "TODO.md",
+      "reason": "Structured open items — current priorities"
+    },
+    {
+      "path": "package.json",
+      "reason": "Version, dependencies, scripts — tells you what the project IS"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "reason": "What shipped, what's unreleased — tells you what CHANGED"
+    },
+    {
+      "path": "harness/notes.json",
+      "reason": "Planning board — open todos, ideas, remarks captured via arch:watch UI"
+    }
+  ],
+  "notes": "Add new entries here when new critical files are added to the project. Keep this list minimal — only files that affect status/priority answers."
+}

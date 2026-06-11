@@ -1,0 +1,62 @@
+{
+  "$comment": "Project-shared Claude Code config. Personal overrides live in settings.local.json. These hooks make the agent harness DYNAMIC: the runtime computes staleness and injects it, instead of trusting the model to remember the protocol. See harness/README.md.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node harness/context-sync/hash-check.mjs --quiet"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node harness/context-sync/verify.mjs --quiet"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node harness/context-sync/prompt-guard.mjs"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node harness/context-sync/hash-check.mjs --update"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node harness/arch-map.mjs --quiet"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node harness/context-sync/edit-guard.mjs"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "description": "Anti-hallucination guardrails. `lockstepGroups` = files that duplicate logic across your project and MUST be edited together. `highRisk` = path patterns that get a just-in-time caution injected when edited. Consumed by lockstep.mjs (CI/commit gate) and edit-guard.mjs (PreToolUse JIT reminder).",
+  "lockstepGroups": [],
+  "highRisk": [
+    {
+      "match": "server/utils/billing",
+      "note": "💰 Billing/payment path. Reserve → charge → refund order is sacred. Run tests before committing."
+    },
+    {
+      "match": "server/utils/auth",
+      "note": "🔐 Auth path. Review security implications carefully before editing."
+    },
+    {
+      "match": "supabase/migrations/",
+      "note": "🗄️ Schema migration — additive + ordered. Never edit a shipped migration; add a new numbered one."
+    }
+  ]
+}

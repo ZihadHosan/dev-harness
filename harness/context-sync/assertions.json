@@ -1,0 +1,4 @@
+{
+  "description": "Doc-vs-code assertions. Each entry checks that a claim in your docs/AGENTS.md still matches reality. Run `npm run harness:verify` to check. Add entries as your project grows.",
+  "assertions": []
+}
