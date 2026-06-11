@@ -9,7 +9,13 @@
   "scripts": {
     "arch": "node harness/arch-map.mjs",
     "arch:check": "node harness/arch-map.mjs --strict",
-    "arch:watch": "node harness/arch-serve.mjs"
+    "arch:watch": "node harness/arch-serve.mjs",
+    "harness:install": "node harness/install.mjs",
+    "harness:check": "node harness/context-sync/hash-check.mjs",
+    "harness:baseline": "node harness/context-sync/hash-check.mjs --update",
+    "harness:verify": "node harness/context-sync/verify.mjs",
+    "harness:lockstep": "node harness/context-sync/lockstep.mjs",
+    "harness:doctor": "node harness/doctor.mjs"
   },
   "keywords": [
     "developer-tools",

@@ -19,40 +19,21 @@ Built for developers using Claude Code. Drop it into any project (new or existin
 ## Quick start
 
 ```bash
-npx dev-harness init
-```
-
-Choose **new project** or **existing project** — the CLI does the rest.
-
-Then:
-
-```bash
-npm run arch:watch   # open http://localhost:4319
-```
-
----
-
-## Manual install
-
-```bash
 # 1. Copy the harness folder into your project
 cp -r dev-harness/harness ./harness
 
-# 2. Copy the template architecture file
-cp dev-harness/templates/architecture.json ./harness/architecture.json
+# 2. Run zero-config setup
+node harness/install.mjs
 
-# 3. Add scripts to your package.json
-{
-  "scripts": {
-    "arch": "node harness/arch-map.mjs",
-    "arch:watch": "node harness/arch-serve.mjs"
-  }
-}
-
-# 4. Edit harness/architecture.json to describe your project
-# 5. Run
-npm run arch:watch
+# 3. Open the dashboard
+npm run arch:watch   # http://localhost:4319
 ```
+
+`install.mjs` auto-detects your stack from `package.json` and sets up everything — no prompts, no placeholders:
+- Wires all Claude Code hooks into `.claude/settings.json`
+- Writes `CLAUDE.md` with your detected Project Constraints (lang, framework, test runner, db, branch)
+- Patches `.gitignore`
+- Creates the Claude memory folder
 
 ---
 
