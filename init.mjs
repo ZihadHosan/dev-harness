@@ -174,7 +174,27 @@ function addScripts() {
 
 function patchArchName() {
   const archPath = join(HARNESS_DEST, 'architecture.json')
-  if (!existsSync(archPath)) return
+  const stack = detectStack(TARGET)
+  const name = stack?.name || 'my-project'
+
+  // Create from template if missing (harness/ existed before architecture.json was added)
+  if (!existsSync(archPath)) {
+    const tmpl = join(HARNESS_SRC, 'architecture.json')
+    if (!existsSync(tmpl)) {
+      console.log('  ⚠  architecture.json template not found — skipping.')
+      return
+    }
+    if (DRY) {
+      console.log(`  [dry-run] would create harness/architecture.json with name "${name}"`)
+      return
+    }
+    let arch
+    try { arch = JSON.parse(readFileSync(tmpl, 'utf8')) } catch { return }
+    arch.name = name
+    writeFileSync(archPath, JSON.stringify(arch, null, 2) + '\n')
+    console.log(`  ✅ Created harness/architecture.json (name: "${name}")`)
+    return
+  }
 
   let arch
   try { arch = JSON.parse(readFileSync(archPath, 'utf8')) } catch { return }
@@ -183,9 +203,6 @@ function patchArchName() {
     console.log(`  ↩  architecture.json name already set ("${arch.name}").`)
     return
   }
-
-  const stack = detectStack(TARGET)
-  const name = stack?.name || 'my-project'
 
   if (DRY) {
     console.log(`  [dry-run] would set architecture.json name → "${name}"`)
