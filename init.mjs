@@ -24,6 +24,54 @@ import { dirname, join, resolve, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
+// ---------------------------------------------------------------------------
+// Shared stack detection (mirrors install.mjs — kept here to avoid import
+// chain issues when init.mjs runs before harness/ exists in the target)
+// ---------------------------------------------------------------------------
+
+function readPkg(root) {
+  const p = join(root, 'package.json')
+  if (!existsSync(p)) return null
+  try { return JSON.parse(readFileSync(p, 'utf8')) } catch { return null }
+}
+
+function detectStack(root) {
+  const pkg = readPkg(root)
+  if (!pkg) return null
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies }
+  const has = (n) => n in deps
+
+  let framework = 'none'
+  if (has('nuxt') || has('@nuxt/core')) framework = 'Nuxt'
+  else if (has('next')) framework = 'Next.js'
+  else if (has('@sveltejs/kit')) framework = 'SvelteKit'
+  else if (has('astro')) framework = 'Astro'
+  else if (has('remix') || has('@remix-run/node')) framework = 'Remix'
+  else if (has('vue')) framework = 'Vue 3'
+  else if (has('react')) framework = 'React'
+  else if (has('svelte')) framework = 'Svelte'
+  else if (has('@nestjs/core')) framework = 'NestJS'
+  else if (has('fastify')) framework = 'Fastify'
+  else if (has('express')) framework = 'Express'
+  else if (has('hono')) framework = 'Hono'
+
+  let test = 'none'
+  if (has('vitest')) test = 'Vitest'
+  else if (has('jest') || has('@jest/core')) test = 'Jest'
+  else if (has('mocha')) test = 'Mocha'
+  else if (has('@playwright/test')) test = 'Playwright'
+
+  const lang = has('typescript') ? 'TypeScript' : 'JavaScript'
+
+  return {
+    name: pkg.name || 'my-project',
+    lang,
+    framework,
+    test,
+    version: pkg.version || '0.1.0',
+  }
+}
+
 const HERE = dirname(fileURLToPath(import.meta.url))   // dev-harness root
 const TARGET = process.cwd()                            // user's project root
 
@@ -121,7 +169,124 @@ function addScripts() {
 }
 
 // ---------------------------------------------------------------------------
-// Step 3-6 — delegate to install.mjs in the target project
+// Step 3 — patch architecture.json with real project name
+// ---------------------------------------------------------------------------
+
+function patchArchName() {
+  const archPath = join(HARNESS_DEST, 'architecture.json')
+  if (!existsSync(archPath)) return
+
+  let arch
+  try { arch = JSON.parse(readFileSync(archPath, 'utf8')) } catch { return }
+
+  if (arch.name && arch.name !== 'My Project') {
+    console.log(`  ↩  architecture.json name already set ("${arch.name}").`)
+    return
+  }
+
+  const stack = detectStack(TARGET)
+  const name = stack?.name || 'my-project'
+
+  if (DRY) {
+    console.log(`  [dry-run] would set architecture.json name → "${name}"`)
+    return
+  }
+
+  arch.name = name
+  writeFileSync(archPath, JSON.stringify(arch, null, 2) + '\n')
+  console.log(`  ✅ Set architecture.json name → "${name}"`)
+}
+
+// ---------------------------------------------------------------------------
+// Step 4 — generate docs/ONBOARDING.md from detected stack
+// ---------------------------------------------------------------------------
+
+function generateOnboarding() {
+  const dest = join(TARGET, 'docs', 'ONBOARDING.md')
+  if (existsSync(dest)) {
+    console.log('  ↩  docs/ONBOARDING.md already exists — left unchanged.')
+    return
+  }
+
+  const stack = detectStack(TARGET)
+  const pkg = readPkg(TARGET)
+  const name = stack?.name || 'my-project'
+  const displayName = name.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+
+  const runCmd = pkg?.scripts?.dev
+    ? 'npm run dev'
+    : pkg?.scripts?.start
+      ? 'npm start'
+      : 'npm run dev'
+
+  const testCmd = stack?.test !== 'none' ? 'npm test' : '# no test runner detected'
+  const buildCmd = pkg?.scripts?.build ? 'npm run build' : '# no build script detected'
+
+  const content = `# ${displayName} — Onboarding
+
+## What is this?
+
+${displayName} is a ${stack?.framework !== 'none' ? stack.framework + ' ' : ''}${stack?.lang || 'JavaScript'} project.
+Update this section to describe what the project does and who it's for.
+
+## Prerequisites
+
+- Node 18+
+- Git
+
+## Getting started
+
+\`\`\`bash
+git clone <repo-url>
+cd ${name}
+npm install
+${runCmd}
+\`\`\`
+
+## Running tests
+
+\`\`\`bash
+${testCmd}
+\`\`\`
+
+## Building for production
+
+\`\`\`bash
+${buildCmd}
+\`\`\`
+
+## Project structure
+
+\`\`\`
+# Fill this in — top-level folders and what they contain
+\`\`\`
+
+## Key files
+
+| File | Purpose |
+| --- | --- |
+| \`package.json\` | Dependencies and scripts |
+| \`harness/architecture.json\` | Component graph for the dashboard |
+
+## Common tasks
+
+- **Add a feature:** describe the pattern here
+- **Fix a bug:** describe the pattern here
+- **Deploy:** describe the process here
+`
+
+  if (DRY) {
+    console.log(`  [dry-run] would create docs/ONBOARDING.md for "${displayName}"`)
+    return
+  }
+
+  mkdirSync(join(TARGET, 'docs'), { recursive: true })
+  writeFileSync(dest, content)
+  console.log(`  ✅ Generated docs/ONBOARDING.md`)
+}
+
+// ---------------------------------------------------------------------------
+// Step 5-8 — delegate to install.mjs in the target project
 // ---------------------------------------------------------------------------
 
 function runInstall() {
@@ -154,6 +319,12 @@ copyHarness()
 
 console.log('Scripts →')
 addScripts()
+
+console.log('Project name →')
+patchArchName()
+
+console.log('Onboarding →')
+generateOnboarding()
 
 runInstall()
 
