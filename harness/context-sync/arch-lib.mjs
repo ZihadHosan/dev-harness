@@ -832,7 +832,7 @@ function mdToHtml(md) {
   }
   for (const raw of lines) {
     if (raw.startsWith('```')) { flush(); if (inPre) { out.push('</code></pre>'); inPre = false } else { out.push('<pre><code>'); inPre = true }; continue }
-    if (inPre) { out.push(escapeHtml(raw)); continue }
+    if (inPre) { out.push(escapeHtml(raw) + '\n'); continue }
     if (raw.startsWith('|') && raw.includes('|', 1)) {
       if (/^\|[-| :]+\|$/.test(raw.trim())) continue
       if (!inTable) { flush(); out.push('<table class="ov-table">'); inTable = true }

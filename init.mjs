@@ -236,14 +236,19 @@ function generateOnboarding() {
       ? 'npm start'
       : 'npm run dev'
 
-  const testCmd = stack?.test !== 'none' ? 'npm test' : '# no test runner detected'
-  const buildCmd = pkg?.scripts?.build ? 'npm run build' : '# no build script detected'
+  const buildCmd = pkg?.scripts?.build ? 'npm run build' : null
+  const testSection = stack?.test && stack.test !== 'none'
+    ? `## Running tests\n\n\`\`\`bash\nnpm test\n\`\`\`\n\n`
+    : ''
+  const buildSection = buildCmd
+    ? `## Building for production\n\n\`\`\`bash\n${buildCmd}\n\`\`\`\n\n`
+    : ''
 
   const content = `# ${displayName} — Onboarding
 
 ## What is this?
 
-${displayName} is a ${stack?.framework !== 'none' ? stack.framework + ' ' : ''}${stack?.lang || 'JavaScript'} project.
+${displayName} is a ${stack?.framework && stack.framework !== 'none' ? stack.framework + ' ' : ''}${stack?.lang || 'JavaScript'} project.
 Update this section to describe what the project does and who it's for.
 
 ## Prerequisites
@@ -260,19 +265,7 @@ npm install
 ${runCmd}
 \`\`\`
 
-## Running tests
-
-\`\`\`bash
-${testCmd}
-\`\`\`
-
-## Building for production
-
-\`\`\`bash
-${buildCmd}
-\`\`\`
-
-## Project structure
+${testSection}${buildSection}## Project structure
 
 \`\`\`
 # Fill this in — top-level folders and what they contain
