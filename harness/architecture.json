@@ -1,0 +1,20 @@
+{
+  "name": "My Project",
+  "zones": [
+    { "id": "frontend", "label": "Frontend", "sub": "src/" },
+    { "id": "backend",  "label": "Backend",  "sub": "server/" },
+    { "id": "data",     "label": "Data",     "sub": "db/" }
+  ],
+  "nodes": [
+    {
+      "id": "app-entry",
+      "zone": "frontend",
+      "label": "App entry",
+      "file": "src/main.js",
+      "desc": "Application entry point. Replace with your real entry file.",
+      "status": "ok",
+      "assertions": [],
+      "todoMatch": ""
+    }
+  ]
+}
