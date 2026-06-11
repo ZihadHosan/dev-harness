@@ -18,19 +18,29 @@ Built for developers using Claude Code. Drop it into any project (new or existin
 
 ## Installation
 
-### Step 1 — Clone dev-harness
+### Step 1 — Clone dev-harness next to your project
 
 ```bash
+# your project is at: ~/projects/my-app
+# clone dev-harness into the same folder
+
+cd ~/projects
 git clone https://github.com/ZihadHosan/dev-harness.git
 ```
 
-Clone it anywhere — next to your project, in a tools folder, wherever is convenient.
+You should now have both folders side by side:
+
+```
+projects/
+  my-app/          ← your project
+  dev-harness/     ← cloned here
+```
 
 ### Step 2 — Run init from your project root
 
 ```bash
-cd /path/to/your-project
-node /path/to/dev-harness/init.mjs
+cd my-app
+node ../dev-harness/init.mjs
 ```
 
 That's it. No prompts. No config. It auto-detects your stack and sets up everything:
@@ -53,17 +63,22 @@ npm run arch:watch
 
 ---
 
-## Example
+## Full example
 
 ```bash
-# clone dev-harness once
-git clone https://github.com/ZihadHosan/dev-harness.git ~/tools/dev-harness
+# 1. go to your projects folder
+cd ~/projects
 
-# install into your project
-cd ~/projects/my-app
-node ~/tools/dev-harness/init.mjs
+# 2. clone dev-harness next to your project
+git clone https://github.com/ZihadHosan/dev-harness.git
 
-# open the dashboard
+# 3. go into your project
+cd my-app
+
+# 4. run init — dev-harness is one folder up
+node ../dev-harness/init.mjs
+
+# 5. open the dashboard
 npm run arch:watch
 ```
 
