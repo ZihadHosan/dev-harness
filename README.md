@@ -21,15 +21,22 @@ The dashboard opens at `http://localhost:4319` and live-reloads as you work.
 
 ## Install
 
-Clone dev-harness **inside** your project root, then run `init.mjs` from that same root:
+**Step 1 — clone once, anywhere on your machine** (you only do this once):
+
+```bash
+git clone https://github.com/ZihadHosan/dev-harness ~/dev-harness
+```
+
+**Step 2 — install into any project** (run from the project root):
 
 ```bash
 cd your-project
-git clone https://github.com/ZihadHosan/dev-harness
-node dev-harness/init.mjs
+node ~/dev-harness/init.mjs
 ```
 
 No prompts. No config files to fill in. Fully automatic.
+
+Your project only ever gets one folder — `harness/`. The `dev-harness` tool lives outside, shared across all your projects.
 
 **What gets installed:**
 
@@ -47,7 +54,7 @@ docs/ONBOARDING.md                ← human onboarding doc
 ### Dry run (preview without writing)
 
 ```bash
-node dev-harness/init.mjs --dry-run
+node ~/dev-harness/init.mjs --dry-run
 ```
 
 ---
@@ -180,19 +187,17 @@ Claude Code hooks (`.claude/settings.json`) are an optional layer. They make the
 
 ## What to commit
 
-```
-harness/                   ✅ commit — shared with team
-AGENTS.md                  ✅ commit
-CLAUDE.md                  ✅ commit (if using Claude Code)
-docs/ONBOARDING.md         ✅ commit
-.claude/settings.json      ✅ commit (if using Claude Code)
+Everything installed by `init.mjs` is gitignored by default — each developer runs `init.mjs` once to set up their own local copy.
 
-harness/arch-map.html      🚫 gitignored (generated output)
-harness/notes.json         🚫 gitignored (local planning notes)
-dev-harness/               🚫 gitignored (the tool itself)
+```
+harness/                   🚫 gitignored (runtime — each dev installs locally)
+AGENTS.md                  🚫 gitignored (generated — regenerated on every sync)
+CLAUDE.md                  🚫 gitignored (generated)
+docs/ONBOARDING.md         🚫 gitignored (generated)
+.claude/settings.json      🚫 gitignored (generated)
 ```
 
-`init.mjs` adds `dev-harness/` to `.gitignore` automatically.
+Nothing to commit. Nothing to review. Nothing to merge.
 
 ---
 

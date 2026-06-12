@@ -25,7 +25,7 @@
  *  12. Generate docs/ONBOARDING.md (last — reads from AGENTS.md)
  */
 
-import { cpSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { cpSync, existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { dirname, join, resolve, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
@@ -38,6 +38,11 @@ const TARGET = process.cwd()                             // user's project root
 const args  = process.argv.slice(2)
 const DRY   = args.includes('--dry-run')
 const FORCE = args.includes('--force') // regenerate even if files exist
+
+// Detect if the tool was cloned inside the target project (e.g. TARGET/dev-harness/)
+const _relRaw  = relative(TARGET, HERE)
+const _rel     = _relRaw.replace(/\\/g, '/')
+const IS_NESTED = _rel !== '' && !_rel.startsWith('..')
 
 // Guard: never install dev-harness into itself
 if (resolve(TARGET) === resolve(HERE)) {
@@ -238,6 +243,32 @@ runInstall()
 
 console.log('\n[ 12 ] Onboarding →')
 await runOnboarding(model)
+
+if (IS_NESTED) {
+  console.log(`\n[ 13 ] Cleanup — remove tool folder →`)
+  const toolDirName = _rel.split('/')[0]  // top-level folder name, e.g. 'dev-harness'
+
+  // Ensure gitignore has the tool folder entry (in case it was already there before)
+  const gitignorePath = join(TARGET, '.gitignore')
+  const giContent = existsSync(gitignorePath) ? readFileSync(gitignorePath, 'utf8') : ''
+  const entry = toolDirName + '/'
+  if (!giContent.includes(entry)) {
+    const sep = giContent.endsWith('\n') || giContent === '' ? '' : '\n'
+    if (!DRY) writeFileSync(gitignorePath, giContent + sep + entry + '\n')
+  }
+
+  if (DRY) {
+    console.log(`  [dry-run] would remove ${toolDirName}/ (harness/ is self-contained)`)
+  } else {
+    try {
+      rmSync(HERE, { recursive: true, force: true })
+      console.log(`  ✅ Removed ${toolDirName}/ — harness/ is self-contained, tool no longer needed`)
+    } catch (e) {
+      console.log(`  ⚠  Could not auto-remove ${toolDirName}/ (${e.message})`)
+      console.log(`     Safe to delete manually — harness/ is fully self-contained.`)
+    }
+  }
+}
 
 console.log(`\n${'─'.repeat(50)}`)
 console.log(`\n  All done.\n`)

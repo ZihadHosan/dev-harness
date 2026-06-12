@@ -156,9 +156,12 @@ function installClaudeMd() {
 // ---------------------------------------------------------------------------
 
 const GITIGNORE_ENTRIES = [
-  '# dev-harness — generated output',
-  'harness/arch-map.html',
-  'harness/notes.json',
+  '# dev-harness — generated (each dev runs init.mjs locally)',
+  'harness/',
+  'AGENTS.md',
+  'CLAUDE.md',
+  'docs/ONBOARDING.md',
+  '.claude/settings.json',
 ]
 
 function patchGitignore() {
