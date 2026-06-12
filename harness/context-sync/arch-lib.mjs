@@ -1108,6 +1108,7 @@ export function renderArchHtml(model) {
     '.ov-stat.wip .ov-stat-circle{color:#2f6fd0;border-color:#2f6fd0}' +
     '.ov-stat.ok .ov-stat-circle{color:#0cff2c;border-color:#0cff2c}' +
     '.ov-stat-label{font-size:12px;text-transform:uppercase;letter-spacing:.04em;font-weight:600}' +
+    '.ov-stat-sub{font-size:11px;color:var(--tx3);margin-top:-6px;text-align:center}' +
     '.ov-stat.crit .ov-stat-label{color:#ff6c6c}' +
     '.ov-stat.debt .ov-stat-label{color:#f5a117}' +
     '.ov-stat.wip .ov-stat-label{color:#2f6fd0}' +
@@ -1146,8 +1147,8 @@ export function renderArchHtml(model) {
   const overviewHtml =
     '<div class="ov-grid">' +
     '<div class="ov-card"><div class="ov-card-h">Project health</div><div class="ov-health">' +
-    '<div class="ov-stat crit" data-act="filter-status" data-status="crit" title="Show blocking components"><div class="ov-stat-circle">' + (sh != null ? sh.blocking : c.crit) + '</div><span class="ov-stat-label">Blocking</span></div>' +
-    '<div class="ov-stat debt" data-act="filter-status" data-status="debt" title="Show tech debt"><div class="ov-stat-circle">' + (sh != null ? sh.debt : c.debt) + '</div><span class="ov-stat-label">Tech debt</span></div>' +
+    '<div class="ov-stat crit" data-act="filter-status" data-status="crit" title="Show blocking components"><div class="ov-stat-circle">' + (sh != null ? sh.blocking : c.crit) + '</div><span class="ov-stat-label">Blocking</span>' + (sh != null && sh.blocking !== c.crit ? '<span class="ov-stat-sub">' + c.crit + ' component' + (c.crit !== 1 ? 's' : '') + '</span>' : '') + '</div>' +
+    '<div class="ov-stat debt" data-act="filter-status" data-status="debt" title="Show tech debt"><div class="ov-stat-circle">' + (sh != null ? sh.debt : c.debt) + '</div><span class="ov-stat-label">Tech debt</span>' + (sh != null && sh.debt !== c.debt ? '<span class="ov-stat-sub">' + c.debt + ' component' + (c.debt !== 1 ? 's' : '') + '</span>' : '') + '</div>' +
     '<div class="ov-stat wip" data-act="filter-status" data-status="wip" title="Show in progress"><div class="ov-stat-circle">' + c.wip + '</div><span class="ov-stat-label">In progress</span></div>' +
     '<div class="ov-stat ok" data-act="filter-status" data-status="ok" title="Show healthy"><div class="ov-stat-circle">' + c.ok + '</div><span class="ov-stat-label">Healthy</span></div>' +
     '</div></div>' +
