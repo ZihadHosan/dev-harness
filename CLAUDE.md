@@ -1,156 +1,117 @@
 # CLAUDE.md — entry point
 
-**Single source of truth: your project docs.** Keep a top-level `README.md` (or `AGENTS.md`) that describes what the project is, how it's built, the invariants, what shipped, and what's next.
+**Single source of truth: [`AGENTS.md`](./AGENTS.md).** Read it first — what this project is, how it's built, the invariants, what shipped, and what's next.
 
 ## Agent harness (mandatory)
 
 This repo runs an enforced read-before-answer harness — see
 [`harness/AGENTS.protocol.md`](./harness/AGENTS.protocol.md).
 
-**Enforcement is automatic** via `.claude/settings.json` hooks:
-- **SessionStart** runs `hash-check.mjs --quiet` (injects which tracked files changed since last session) **and** `verify.mjs --quiet` (flags doc claims that no longer match the code).
-- **UserPromptSubmit** runs `harness/context-sync/prompt-guard.mjs`; if you say "I pushed", "I updated X", "recheck", etc., it surfaces the changed files so the model re-reads them.
-- **Stop** advances the staleness baseline to the session's end-state.
-- **PreToolUse** (Edit|Write|MultiEdit) runs `edit-guard.mjs`; injects lockstep partners and high-risk cautions just before any file is opened for editing.
+**Hooks fire automatically** via `.claude/settings.json`:
+- **SessionStart** → `hash-check.mjs` (staleness) + `verify.mjs` (doc vs code)
+- **UserPromptSubmit** → `prompt-guard.mjs` (detects "I pushed / I updated X")
+- **PreToolUse** → `edit-guard.mjs` (lockstep partners + high-risk cautions)
+- **Stop** → `hash-check.mjs --update` (advance baseline) + `arch-map.mjs` (regen map)
 
-Before answering any **status / priority / "what's broken"** question, read the tracked files in
-[`harness/context-sync/tracked-files.json`](./harness/context-sync/tracked-files.json).
-If the harness flags a file as changed, re-read it — do not answer from cached context.
+Before answering any **status / priority / "what's broken"** question, read every file
+in [`harness/context-sync/tracked-files.json`](./harness/context-sync/tracked-files.json).
+If the harness flags a file as changed, re-read it — never answer from cached context.
 
-## Manual commands
+## Commands
 
 ```bash
-npm run harness:check      # report tracked files that changed since the baseline
-npm run harness:baseline   # reset the baseline after you've re-read the changes
-npm run harness:verify     # check doc claims still match the code (assertions.json)
-npm run harness:doctor     # confirm hooks are wired, files tracked, docs honest
-npm run harness:lockstep   # check that lockstep file pairs are in sync
-npm run arch               # regenerate harness/arch-map.html
-npm run arch:watch         # live watch dashboard on http://localhost:4319
+npm run arch              # regenerate harness/arch-map.html
+npm run arch:watch        # live watch dashboard on http://localhost:4319
+npm run harness:sync      # re-analyze project, update AGENTS.md + architecture.json
+npm run harness:check     # list tracked files changed since baseline
+npm run harness:baseline  # reset baseline after re-reading changes
+npm run harness:verify    # check doc claims still match the code
+npm run harness:doctor    # confirm hooks wired, files tracked, docs honest
+npm run harness:lockstep  # check lockstep file pairs are in sync
 ```
 
-## Response style (token discipline) — MANDATORY
+## Guardrails
 
-Compress every reply by importance tier. Default to less.
-1. **Critical** (bugs, breakage, security, data-loss, anything blocking or destructive) → show in full: what, why, fix.
-2. **Medium** (normal changes, findings, status) → one short line each. No essays, no restating the obvious.
-3. **Low** (nits, optional polish, FYIs, long lists) → just name it; **ask before expanding**.
-
-Lead with the answer. Skip preamble/recap. Code/tables only when they beat prose.
-
-## Guardrails (mechanical — don't rely on memory)
-
-The harness enforces correctness so any model (incl. fast/low-tier) stays safe. Cooperate with it:
-- **Trust code over docs.** If a doc and the code disagree, the code wins — fix the doc (`npm run harness:verify`).
-- **Lockstep duplication:** if your project duplicates logic across locations, define them in `guard-config.json → lockstepGroups`. The `edit-guard` PreToolUse hook names the partner file when you open one; `npm run harness:lockstep` + CI catch half-updates.
-- **High-risk paths:** define them in `guard-config.json → highRisk`. The agent gets a just-in-time caution injected before editing any matching file.
-- **Before committing:** `npm test` green + `npm run harness:verify` + `npm run harness:lockstep`. CI re-checks all of it.
-- **When unsure, stop and ask** rather than guessing a file's contents or a path — read it first.
-
-## Build / test (house rules)
-
-- Run `npm test` before every commit — keep tests green.
-- Run `npm run build` to confirm no type or compile errors.
-- Don't commit/push unless explicitly asked.
+- **Trust code over docs.** Code wins — fix the doc (`npm run harness:verify`).
+- **Lockstep:** define duplicated-logic file pairs in `guard-config.json → lockstepGroups`. Edit all copies in one change.
+- **High-risk paths:** define in `guard-config.json → highRisk`. Agent gets a just-in-time caution before editing.
+- **Before committing:** `npm test` green + `npm run harness:verify` + `npm run harness:lockstep`.
+- **When unsure, stop and ask** — never guess a file path or API.
 
 ## After every task — NON-NEGOTIABLE
 
 After completing ANY task that touches code, you MUST:
 1. Run `npm test` — all tests must pass
 2. Run `npm run build` — build must succeed with no errors
-3. Report results with explicit checkmarks in your final message:
+3. Report results with explicit checkmarks:
    - ✅ Tests: N passed
    - ✅ Build: success
 
 Never report a task as done without these two checks. No exceptions.
 
-## Thinking Protocol
-
-You are a senior software engineer. You think before you act.
-You never guess. You never over-explain. You never shorten code.
-
-### CONTEXT PROTOCOL
-
-The user may provide a `<context>` block at the start of their message.
-Treat every field in it as ground truth for this task.
-If no `<context>` is provided, infer what you can from the code itself.
-If critical information is missing and cannot be inferred, ask ONE question before proceeding.
-
-### MANDATORY REASONING PROTOCOL
-
-For EVERY task, reason using these tags in order. No skipping. No merging. No prose outside tags.
+## Thinking Protocol v3.0
 
 ```
+Think before you act. Never guess. Never shorten code.
+
+If the user message starts with a <context> block, treat it as ground truth.
+If critical info is missing and not inferable from the code, ask ONE question, then stop.
+
+For every code task, respond using exactly these tags, in order, no prose outside them:
+
 <read>
-What does the target code/file/system actually do?
-State its purpose, inputs, outputs, and side effects. Max 3 sentences.
+What the target actually does: purpose, inputs, outputs, side effects. Max 3 sentences.
 </read>
 
 <scope>
-What else touches this? List callers, importers, shared state,
-event dependencies, external API hooks — whatever applies to this stack.
-If nothing: <scope>isolated</scope>
+Everything that touches it: callers, importers, shared state, API contracts.
+"isolated" if nothing.
 </scope>
 
 <plan>
-The exact change to make and why it solves the task.
-One approach only — the correct one.
-No alternatives unless the task explicitly asks for options.
+The exact change and why it solves the task. One approach. No alternatives unless asked.
 </plan>
 
 <risk>
-What could break? Name it specifically — the function, the module,
-the config, the API contract, the data shape, the consumer — whatever is at stake.
-If nothing: <risk>none</risk>
+Each specific thing that could break — function, contract, data shape, consumer.
+After planning, mark each: RESOLVED (how) or OPEN (why). Never hide an OPEN risk.
+"none" if nothing.
 </risk>
 
-<verify>
-After the planned change: is every risk in <risk> still safe?
-Confirm each one explicitly.
-If a risk cannot be resolved, say so clearly — do not hide it in <answer>.
-</verify>
-
 <answer>
-Deliver ONLY the final code, command, or decision.
-- Code must be complete — no placeholders, no "..." shortcuts, no "rest unchanged"
-- No explanation unless the task asks for it
-- If a follow-up action is required (run tests, restart server, etc.), state it in one line after the code
+Final code, command, or decision only.
+Code complete — no "...", no "rest unchanged", no placeholder.
+If uncertain an API/import exists, flag it in <risk>, never guess it in <answer>.
+Required follow-up (tests, restart): one line after the code.
 </answer>
+
+Scale to the task:
+- Question, no code change → <read> + <answer> only.
+- Meta/setup tasks (reading config, .md ops) → no tags at all.
+- One-line fix → one <answer> block, no padding.
+
+Formatting: code block for every path, command, and identifier. Headings, bullets,
+and bold only when structure genuinely aids scanning — default to plain prose.
+No filler, no affirmations, no restating the user's request.
 ```
 
-### HARD RULES
+## Claude Code addendum
 
-1. Never hallucinate a method, import, or API. If uncertain → flag in `<risk>`, not a guess in `<answer>`.
-2. Never shorten code output. "..." is a bug, not a summary.
-3. If the task is ambiguous: state the ambiguity in `<read>`, ask one clarifying question, stop.
-4. Offer alternatives only when explicitly asked.
-5. Never add affirmations, filler, or meta-commentary before `<read>`.
-6. Each reasoning tag: 1–4 sentences max. `<answer>` has no length limit.
-7. **Be surgical with selectors.** Prefer precise selectors like `span:empty` over broad ones. Always test scope before applying.
-8. **Never render reasoning tags for meta/setup tasks** (reading config files, session setup, `.md` file operations). Reserve the tags for code tasks only.
-
-### DRIFT GUARD — NEVER:
-- Open with affirmations ("Great question", "Sure!", "Of course")
-- Skip any reasoning tag because "the change is small"
-- Use "..." or "// rest unchanged" in code output
-- Offer multiple solutions unless explicitly asked
-- Explain the answer after `<answer>` unless asked
-- Guess an import, method, or API you are not certain exists
-- Merge two tags into one
+```
+Once per session, before the first edit: ask whether `git pull` has been run.
+If not, ask permission to run it. Never ask again mid-session. Never edit a stale tree.
+```
 
 ## Project Constraints
 
-Fill in for your project — this block is read by the agent at session start.
-
 ```
-lang:       [TypeScript · JavaScript · Python · etc.]
-framework:  [React · Vue · Express · etc.]
-runtime:    [browser · Node · edge · etc.]
-pattern:    [Composition API · hooks · etc.]
-db:         [Postgres · Supabase · SQLite · etc.]
-test:       [Vitest · Jest · pytest · etc.]
+lang:       JavaScript
+framework:  none (Node.js CLI tool)
+runtime:    Node 18+
+pattern:    ESM · zero dependencies
+test:       none
 notes:
-  - [any invariants the agent must never violate]
-  - [e.g. "never expose service_role client-side"]
-  - [e.g. "working branch: dev — never commit/push unless explicitly asked"]
+  - Zero npm dependencies — Node built-ins only
+  - Never commit/push unless explicitly asked
+  - Working branch: master
 ```
