@@ -24,19 +24,30 @@ The `<!-- auto:* -->` sections are managed by `npm run harness:sync` — edit th
 <!-- auto:structure -->
 ## Project Structure
 
-### Zones
+**7 files across 3 directories**
 
-| Zone | Path | Source files |
-|------|------|-------------|
-| Docs | `docs/` | 0 |
+### docs/ (1 file)
 
-### Key Files
+| File | Role | Notes |
+|------|------|-------|
+| `ONBOARDING.md` | Documentation |  |
 
-| File | Role |
-|------|------|
-| `package.json` | Dependencies & scripts |
-| `README.md` | Documentation |
-| `AGENTS.md` | AI onboarding |
+### Root (5 files)
+
+| File | Role | Notes |
+|------|------|-------|
+| `AGENTS.md` | Documentation |  |
+| `CLAUDE.md` | Documentation |  |
+| `init.mjs` | — |  |
+| `package.json` | Data |  |
+| `README.md` | Documentation |  |
+
+### templates/ (1 file)
+
+| File | Role | Notes |
+|------|------|-------|
+| `architecture.json` | Data |  |
+
 <!-- /auto:structure -->
 
 <!-- auto:health -->

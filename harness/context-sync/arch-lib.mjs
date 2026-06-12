@@ -890,6 +890,7 @@ export function renderArchHtml(model) {
   }
 
   const c = model.counts
+  const sh = model.scanHealth ?? null
   const summary =
     '<button class="reset-filter" data-act="reset-filter" title="Show all nodes">Reset filter</button>' +
     '<span class="leg" data-act="filter-status" data-status="ok" title="Show healthy nodes"><span class="dot ok"></span>Healthy <b>' + c.ok + '</b></span>' +
@@ -1115,8 +1116,8 @@ export function renderArchHtml(model) {
   const overviewHtml =
     '<div class="ov-grid">' +
     '<div class="ov-card"><div class="ov-card-h">Project health</div><div class="ov-health">' +
-    '<div class="ov-stat crit" data-act="filter-status" data-status="crit" title="Show blocking components"><div class="ov-stat-circle">' + c.crit + '</div><span class="ov-stat-label">Blocking</span></div>' +
-    '<div class="ov-stat debt" data-act="filter-status" data-status="debt" title="Show tech debt"><div class="ov-stat-circle">' + c.debt + '</div><span class="ov-stat-label">Tech debt</span></div>' +
+    '<div class="ov-stat crit" data-act="filter-status" data-status="crit" title="Show blocking components"><div class="ov-stat-circle">' + (sh != null ? sh.blocking : c.crit) + '</div><span class="ov-stat-label">Blocking</span></div>' +
+    '<div class="ov-stat debt" data-act="filter-status" data-status="debt" title="Show tech debt"><div class="ov-stat-circle">' + (sh != null ? sh.debt : c.debt) + '</div><span class="ov-stat-label">Tech debt</span></div>' +
     '<div class="ov-stat wip" data-act="filter-status" data-status="wip" title="Show in progress"><div class="ov-stat-circle">' + c.wip + '</div><span class="ov-stat-label">In progress</span></div>' +
     '<div class="ov-stat ok" data-act="filter-status" data-status="ok" title="Show healthy"><div class="ov-stat-circle">' + c.ok + '</div><span class="ov-stat-label">Healthy</span></div>' +
     '</div></div>' +

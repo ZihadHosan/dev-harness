@@ -31,6 +31,7 @@ export const TODO_FILE = join(PROJECT_ROOT, 'TODO.md')
 export const OUT_FILE = join(HERE, 'arch-map.html')
 export const NOTES_FILE = join(HERE, 'notes.json')
 export const ONBOARDING_FILE = join(PROJECT_ROOT, 'docs', 'ONBOARDING.md')
+export const HEALTH_FILE = join(HERE, 'health.json')
 
 function readJson(path, fallback, quiet) {
   try {
@@ -71,6 +72,7 @@ export function generate({ quiet = false } = {}) {
   model.todoItems = todoItems
   model.onboarding = existsSync(ONBOARDING_FILE) ? readFileSync(ONBOARDING_FILE, 'utf8') : ''
   model.projectName = arch.name || 'My Project'
+  model.scanHealth = existsSync(HEALTH_FILE) ? readJson(HEALTH_FILE, null, quiet) : null
   writeFileSync(OUT_FILE, renderArchHtml(model))
   return { model, outFile: OUT_FILE }
 }

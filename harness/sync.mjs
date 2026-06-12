@@ -20,7 +20,8 @@
  *   npm run harness:watch (on file save, via arch-serve.mjs)
  */
 
-import { resolve, dirname } from 'node:path'
+import { writeFileSync } from 'node:fs'
+import { resolve, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -52,6 +53,11 @@ async function run() {
   const b = model.health?.blocking?.length ?? 0
   const d = model.health?.debt?.length ?? 0
   const g = model.gitStatus?.length ?? 0
+
+  writeFileSync(
+    join(HERE, 'health.json'),
+    JSON.stringify({ blocking: b, debt: d, inProgress: g, scannedAt: new Date().toISOString() }, null, 2) + '\n'
+  )
 
   // Phase 2 — AGENTS.md
   const { syncAgents } = await import('./generate-agents.mjs')
