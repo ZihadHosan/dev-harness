@@ -177,6 +177,7 @@ function makePlaceholder() {
     label:      'App entry',
     path:       'src/index.js',
     desc:       'Replace with your real entry file.',
+    wip:        true,
     assertions: [],
     todoMatch:  '',
   }

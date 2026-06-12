@@ -34,6 +34,7 @@
       "label": "App entry",
       "path": "src/index.js",
       "desc": "Application entry point. Replace with your real entry file.",
+      "wip": true,
       "assertions": [],
       "todoMatch": ""
     },

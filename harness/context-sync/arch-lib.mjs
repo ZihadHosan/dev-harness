@@ -210,7 +210,7 @@ export function buildModel(arch, ctx) {
     const reasons = nodeReasons(n, ctx)
     if (status in counts) counts[status]++
     let missing = false
-    if (!n.external && n.path) {
+    if (!n.external && !n.wip && n.path) {
       missing = !ctx.fileExists(n.path)
       if (missing) drift.push(`${n.id} → path not found: ${n.path}`)
     }
