@@ -20,6 +20,10 @@
     {
       "path": "harness/notes.json",
       "reason": "Planning board — open todos, ideas, remarks captured via arch:watch UI"
+    },
+    {
+      "path": "AGENTS.md",
+      "reason": "Project brain — single source of truth for what this project is and what's next"
     }
   ],
   "notes": "Add new entries here when new critical files are added to the project. Keep this list minimal — only files that affect status/priority answers."

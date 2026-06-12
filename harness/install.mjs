@@ -1,41 +1,33 @@
 #!/usr/bin/env node
 /**
- * install.mjs — zero-config harness setup for any project (zero npm deps).
+ * install.mjs — wire Claude Code hooks, CLAUDE.md, .gitignore, memory folder,
+ *               and git post-commit hook into the target project.
  *
- * Runs fully automatically — no prompts, no placeholders.
- *
- * What it does (all idempotent):
- *   1. Merges harness hooks into .claude/settings.json
- *   2. Writes CLAUDE.md with auto-detected Project Constraints (skips if file exists)
- *   3. Patches .gitignore with harness-generated file entries
- *   4. Creates the Claude memory folder for this project (~/.claude/projects/<slug>/memory/)
- *
- * Usage:
- *   node harness/install.mjs              # full install
- *   node harness/install.mjs --dry-run    # show what would change, write nothing
- *   node harness/install.mjs --target <path>   # target a different settings.json
+ * Run from the target project root (after harness/ is copied):
+ *   node harness/install.mjs
+ *   node harness/install.mjs --dry-run
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
 import { mergeHooks } from './context-sync/lib.mjs'
 
-const HERE = dirname(fileURLToPath(import.meta.url))
+const HERE        = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = resolve(HERE, '..')
 const TEMPLATE_DIR = join(HERE, 'templates')
 
-const args = process.argv.slice(2)
-const DRY = args.includes('--dry-run')
-const tIdx = args.indexOf('--target')
+const args  = process.argv.slice(2)
+const DRY   = args.includes('--dry-run')
+const tIdx  = args.indexOf('--target')
 const TARGET = tIdx !== -1 && args[tIdx + 1]
   ? resolve(args[tIdx + 1])
   : join(PROJECT_ROOT, '.claude', 'settings.json')
 
 // ---------------------------------------------------------------------------
-// Stack detection from package.json
+// Stack detection (needed for CLAUDE.md generation)
 // ---------------------------------------------------------------------------
 
 function detectStack(pkgPath) {
@@ -43,22 +35,16 @@ function detectStack(pkgPath) {
   let pkg
   try {
     pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
-  } catch {
-    return null
-  }
+  } catch { return null }
 
   const allDeps = {
-    ...pkg.dependencies,
-    ...pkg.devDependencies,
-    ...pkg.peerDependencies,
-    ...pkg.optionalDependencies,
+    ...pkg.dependencies, ...pkg.devDependencies,
+    ...pkg.peerDependencies, ...pkg.optionalDependencies,
   }
-  const has = (name) => name in allDeps
+  const has = (n) => n in allDeps
 
-  // Language
   const lang = has('typescript') ? 'TypeScript' : 'JavaScript'
 
-  // Framework — most specific first
   let framework = 'none'
   if (has('nuxt') || has('@nuxt/core')) framework = 'Nuxt'
   else if (has('next')) framework = 'Next.js'
@@ -74,8 +60,8 @@ function detectStack(pkgPath) {
   else if (has('express')) framework = 'Express'
   else if (has('hono')) framework = 'Hono'
   else if (has('koa')) framework = 'Koa'
+  else if (pkg.bin) framework = 'CLI'
 
-  // Test runner
   let test = 'none'
   if (has('vitest')) test = 'Vitest'
   else if (has('jest') || has('@jest/core')) test = 'Jest'
@@ -83,47 +69,41 @@ function detectStack(pkgPath) {
   else if (has('@playwright/test')) test = 'Playwright'
   else if (has('cypress')) test = 'Cypress'
   else if (has('ava')) test = 'Ava'
-  else if (has('tap') || has('@tap/core')) test = 'Tap'
 
-  // Database
   let db = 'none'
   if (has('@supabase/supabase-js') || has('@supabase/ssr')) db = 'Supabase'
   else if (has('@prisma/client')) db = 'Prisma'
   else if (has('drizzle-orm')) db = 'Drizzle'
   else if (has('mongoose')) db = 'MongoDB'
   else if (has('@planetscale/database')) db = 'PlanetScale'
-  else if (has('@neondatabase/serverless') || has('@neon-tech/serverless-driver')) db = 'Neon'
   else if (has('pg') || has('postgres')) db = 'PostgreSQL'
   else if (has('mysql2') || has('mysql')) db = 'MySQL'
   else if (has('better-sqlite3') || has('sqlite3')) db = 'SQLite'
 
-  // Runtime
   const hasBundler = has('vite') || has('webpack') || has('parcel') || has('rollup') || has('esbuild')
   const isSSR = ['Nuxt', 'Next.js', 'SvelteKit', 'Remix', 'Astro', 'NestJS', 'Express', 'Fastify', 'Hono', 'Koa'].includes(framework)
   let runtime = 'Node'
   if (hasBundler && isSSR) runtime = 'Node · browser'
-  else if (hasBundler && !isSSR) runtime = 'browser'
+  else if (hasBundler) runtime = 'browser'
 
-  // Pattern
   let pattern = 'ESM'
   if (framework === 'Vue 3' || framework === 'Nuxt') pattern = 'Composition API · ESM'
   else if (['React', 'Next.js', 'Remix', 'Gatsby'].includes(framework)) pattern = 'hooks · functional · ESM'
   else if (['Svelte', 'SvelteKit'].includes(framework)) pattern = 'reactive stores · ESM'
   else if (['Express', 'Fastify', 'Hono', 'Koa', 'NestJS'].includes(framework)) pattern = 'ESM · Node'
 
-  // Current git branch
   let branch = 'main'
   try {
     branch = execSync('git rev-parse --abbrev-ref HEAD', {
       cwd: PROJECT_ROOT, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']
     }).trim() || 'main'
-  } catch { /* no git — keep default */ }
+  } catch { /* not a git repo */ }
 
   return { lang, framework, runtime, pattern, db, test, branch, name: pkg.name || '' }
 }
 
 function buildConstraintsBlock(stack) {
-  const lines = [
+  return [
     `lang:       ${stack.lang}`,
     `framework:  ${stack.framework}`,
     `runtime:    ${stack.runtime}`,
@@ -133,20 +113,19 @@ function buildConstraintsBlock(stack) {
     `notes:`,
     `  - Never commit/push unless explicitly asked`,
     `  - Working branch: ${stack.branch}`,
-  ]
-  return lines.join('\n')
+  ].join('\n')
 }
 
 // ---------------------------------------------------------------------------
-// CLAUDE.md — write from template (skip if already exists)
+// CLAUDE.md
 // ---------------------------------------------------------------------------
 
-function installClaudeMd(dry) {
+function installClaudeMd() {
   const dest = join(PROJECT_ROOT, 'CLAUDE.md')
   const tmpl = join(TEMPLATE_DIR, 'CLAUDE.md')
 
   if (existsSync(dest)) {
-    console.log(`  ↩  CLAUDE.md already exists — left unchanged.`)
+    console.log('  ↩  CLAUDE.md already exists — left unchanged.')
     return
   }
 
@@ -162,83 +141,79 @@ function installClaudeMd(dry) {
 
   const content = readFileSync(tmpl, 'utf8').replace('{{PROJECT_CONSTRAINTS}}', constraints)
 
-  if (dry) {
-    console.log(`  [dry-run] would create CLAUDE.md`)
+  if (DRY) {
+    console.log('  [dry-run] would create CLAUDE.md')
     if (stack) console.log(`    detected: ${stack.lang} · ${stack.framework} · ${stack.test}`)
     return
   }
 
   writeFileSync(dest, content)
-  if (stack) {
-    console.log(`  ✅ Created CLAUDE.md`)
-    console.log(`     lang: ${stack.lang}  framework: ${stack.framework}  test: ${stack.test}  db: ${stack.db}`)
-  } else {
-    console.log(`  ✅ Created CLAUDE.md (no package.json detected — constraints left as defaults)`)
-  }
+  console.log(`  ✅ Created CLAUDE.md${stack ? ` (${stack.lang} · ${stack.framework})` : ''}`)
 }
 
 // ---------------------------------------------------------------------------
-// .gitignore — add harness-generated entries
+// .gitignore
 // ---------------------------------------------------------------------------
 
 const GITIGNORE_ENTRIES = [
   '# dev-harness — generated output',
   'harness/arch-map.html',
+  'harness/notes.json',
 ]
 
-function patchGitignore(dry) {
-  const dest = join(PROJECT_ROOT, '.gitignore')
+function patchGitignore() {
+  const dest     = join(PROJECT_ROOT, '.gitignore')
   const existing = existsSync(dest) ? readFileSync(dest, 'utf8') : ''
-  const toAdd = GITIGNORE_ENTRIES.filter((line) => line.startsWith('#') || !existing.includes(line))
+  const toAdd    = GITIGNORE_ENTRIES.filter(
+    (line) => line.startsWith('#') || !existing.includes(line)
+  )
+  const realEntries = toAdd.filter((l) => !l.startsWith('#'))
 
-  if (toAdd.filter((l) => !l.startsWith('#')).length === 0) {
-    console.log(`  ↩  .gitignore already has harness entries.`)
+  if (!realEntries.length) {
+    console.log('  ↩  .gitignore already has harness entries.')
     return
   }
 
-  if (dry) {
-    console.log(`  [dry-run] would add to .gitignore: ${toAdd.filter((l) => !l.startsWith('#')).join(', ')}`)
+  if (DRY) {
+    console.log(`  [dry-run] would add to .gitignore: ${realEntries.join(', ')}`)
     return
   }
 
-  const separator = existing.endsWith('\n') || existing === '' ? '' : '\n'
-  writeFileSync(dest, existing + separator + toAdd.join('\n') + '\n')
-  console.log(`  ✅ Patched .gitignore (+${toAdd.filter((l) => !l.startsWith('#')).length} entries)`)
+  const sep = existing.endsWith('\n') || existing === '' ? '' : '\n'
+  writeFileSync(dest, existing + sep + toAdd.join('\n') + '\n')
+  console.log(`  ✅ Patched .gitignore (+${realEntries.length} entries)`)
 }
 
 // ---------------------------------------------------------------------------
-// Memory folder — ~/.claude/projects/<slug>/memory/
+// Claude memory folder
 // ---------------------------------------------------------------------------
 
 function projectSlug(root) {
-  return root
-    .split(/[\\/:]/)
-    .filter(Boolean)
-    .join('--')
+  return root.split(/[\\/:]/).filter(Boolean).join('--')
 }
 
-function ensureMemory(dry) {
-  const slug = projectSlug(PROJECT_ROOT)
-  const memDir = join(homedir(), '.claude', 'projects', slug, 'memory')
-  const memIndex = join(memDir, 'MEMORY.md')
+function ensureMemory() {
+  const slug    = projectSlug(PROJECT_ROOT)
+  const memDir  = join(homedir(), '.claude', 'projects', slug, 'memory')
+  const memFile = join(memDir, 'MEMORY.md')
 
-  if (existsSync(memIndex)) {
-    console.log(`  ↩  Memory folder already exists (${slug}).`)
+  if (existsSync(memFile)) {
+    console.log(`  ↩  Memory folder already exists.`)
     return
   }
 
-  if (dry) {
+  if (DRY) {
     console.log(`  [dry-run] would create ~/.claude/projects/${slug}/memory/MEMORY.md`)
     return
   }
 
   mkdirSync(memDir, { recursive: true })
-  writeFileSync(memIndex, '# Memory Index\n')
+  writeFileSync(memFile, '# Memory Index\n')
   console.log(`  ✅ Created memory folder (~/.claude/projects/${slug}/memory/)`)
 }
 
 // ---------------------------------------------------------------------------
-// Hooks — existing logic, unchanged
+// Claude Code hooks
 // ---------------------------------------------------------------------------
 
 function installHooks() {
@@ -259,7 +234,7 @@ function installHooks() {
     }
     mkdirSync(dirname(TARGET), { recursive: true })
     writeFileSync(TARGET, JSON.stringify(template, null, 2) + '\n')
-    console.log(`  ✅ Created ${TARGET} with hooks: ${Object.keys(templateHooks).join(', ')}`)
+    console.log(`  ✅ Created ${TARGET} with hooks`)
     return
   }
 
@@ -273,20 +248,76 @@ function installHooks() {
 
   const { added, present } = mergeHooks(existing, templateHooks)
 
-  if (added.length === 0) {
-    console.log(`  ↩  Hooks already present (${present.length} wired). No changes.`)
+  if (!added.length) {
+    console.log(`  ↩  Claude hooks already wired (${present.length} hooks).`)
     return
   }
 
   if (DRY) {
-    console.log(`  [dry-run] would add ${added.length} hook(s):`)
-    for (const c of added) console.log(`    + ${c}`)
+    console.log(`  [dry-run] would add ${added.length} hook(s)`)
     return
   }
 
   writeFileSync(TARGET, JSON.stringify(existing, null, 2) + '\n')
-  console.log(`  ✅ Wired ${added.length} hook(s) into ${TARGET}:`)
-  for (const c of added) console.log(`    + ${c}`)
+  console.log(`  ✅ Wired ${added.length} hook(s) into .claude/settings.json`)
+}
+
+// ---------------------------------------------------------------------------
+// Git post-commit hook → npm run harness:sync --quiet
+// ---------------------------------------------------------------------------
+
+function installGitHook() {
+  // Find .git directory — walk up from project root
+  let gitDir = null
+  let check  = PROJECT_ROOT
+  for (let i = 0; i < 5; i++) {
+    const candidate = join(check, '.git')
+    if (existsSync(candidate)) { gitDir = candidate; break }
+    const parent = join(check, '..')
+    if (parent === check) break
+    check = parent
+  }
+
+  if (!gitDir) {
+    console.log('  ↩  No .git directory found — post-commit hook skipped.')
+    return
+  }
+
+  const hooksDir  = join(gitDir, 'hooks')
+  const hookFile  = join(hooksDir, 'post-commit')
+  const hookLine  = 'npm run harness:sync --quiet 2>/dev/null || true'
+  const hookBang  = '#!/bin/sh'
+
+  if (existsSync(hookFile)) {
+    const content = readFileSync(hookFile, 'utf8')
+    if (content.includes('harness:sync')) {
+      console.log('  ↩  Git post-commit hook already installed.')
+      return
+    }
+    if (DRY) {
+      console.log('  [dry-run] would append harness:sync to existing post-commit hook')
+      return
+    }
+    // Append to existing hook
+    const sep = content.endsWith('\n') ? '' : '\n'
+    writeFileSync(hookFile, content + sep + '\n# dev-harness\n' + hookLine + '\n')
+    console.log('  ✅ Appended harness:sync to existing post-commit hook')
+    return
+  }
+
+  if (DRY) {
+    console.log('  [dry-run] would create .git/hooks/post-commit → harness:sync')
+    return
+  }
+
+  mkdirSync(hooksDir, { recursive: true })
+  writeFileSync(hookFile, `${hookBang}\n\n# dev-harness — sync project analysis after every commit\n${hookLine}\n`)
+
+  try {
+    chmodSync(hookFile, 0o755)
+  } catch { /* Windows — chmod not critical */ }
+
+  console.log('  ✅ Installed git post-commit hook → harness:sync')
 }
 
 // ---------------------------------------------------------------------------
@@ -296,19 +327,22 @@ function installHooks() {
 function main() {
   console.log(`\ndev-harness install${DRY ? ' [dry-run]' : ''}\n`)
 
-  console.log('Hooks →')
+  console.log('Claude hooks →')
   installHooks()
 
   console.log('CLAUDE.md →')
-  installClaudeMd(DRY)
+  installClaudeMd()
 
   console.log('.gitignore →')
-  patchGitignore(DRY)
+  patchGitignore()
 
   console.log('Memory →')
-  ensureMemory(DRY)
+  ensureMemory()
 
-  console.log('\nDone. Run `npm run arch:watch` to open the dashboard.\n')
+  console.log('Git hook →')
+  installGitHook()
+
+  console.log('\nDone.\n')
 }
 
 try {

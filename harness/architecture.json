@@ -1,18 +1,59 @@
 {
-  "name": "My Project",
+  "name": "dev-harness",
   "zones": [
-    { "id": "frontend", "label": "Frontend", "sub": "src/" },
-    { "id": "backend",  "label": "Backend",  "sub": "server/" },
-    { "id": "data",     "label": "Data",     "sub": "db/" }
+    {
+      "id": "frontend",
+      "label": "Frontend",
+      "sub": "src/"
+    },
+    {
+      "id": "backend",
+      "label": "Backend",
+      "sub": "server/"
+    },
+    {
+      "id": "lib",
+      "label": "Shared",
+      "sub": "lib/"
+    },
+    {
+      "id": "data",
+      "label": "Data",
+      "sub": "db/"
+    },
+    {
+      "id": "docs",
+      "label": "Docs",
+      "sub": "docs/"
+    }
   ],
   "nodes": [
     {
       "id": "app-entry",
       "zone": "frontend",
       "label": "App entry",
-      "file": "src/main.js",
+      "path": "src/index.js",
       "desc": "Application entry point. Replace with your real entry file.",
-      "status": "ok",
+      "assertions": [],
+      "todoMatch": ""
+    },
+    {
+      "id": "entry",
+      "zone": "lib",
+      "label": "CLI entry",
+      "path": "src/index.ts",
+      "desc": "CLI entry point — command registration.",
+      "wip": true,
+      "assertions": [],
+      "todoMatch": ""
+    },
+    {
+      "id": "commands",
+      "zone": "lib",
+      "label": "Commands",
+      "path": "src/commands",
+      "desc": "Individual command implementations.",
+      "wip": true,
       "assertions": [],
       "todoMatch": ""
     }

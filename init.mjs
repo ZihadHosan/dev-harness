@@ -1,22 +1,28 @@
 #!/usr/bin/env node
 /**
- * init.mjs — install dev-harness into any project from the cloned repo or via npx.
+ * init.mjs — zero-config harness installer for any project.
  *
  * Run from the TARGET project root, pointing at this file:
  *
- *   node path/to/dev-harness/init.mjs        # install into cwd
+ *   node path/to/dev-harness/init.mjs
  *   node path/to/dev-harness/init.mjs --dry-run
  *
  * Or via npx (once published):
  *   npx dev-harness
  *
  * What it does (all idempotent):
- *   1. Copies harness/ folder into the target project
- *   2. Adds harness scripts to the project's package.json
- *   3. Wires Claude Code hooks into .claude/settings.json
- *   4. Writes CLAUDE.md with auto-detected Project Constraints
- *   5. Patches .gitignore
- *   6. Creates the Claude memory folder
+ *   1. Copy harness/ folder into the target project
+ *   2. Add harness scripts to package.json (creates one if absent)
+ *   3. Analyze the project — detect state + scan for structure and health
+ *   4. Generate AGENTS.md  — project brain (auto + manual blocks)
+ *   5. Generate harness/architecture.json — component graph
+ *   6. Generate harness/context-sync/tracked-files.json
+ *   7. Wire Claude Code hooks (.claude/settings.json)
+ *   8. Write CLAUDE.md with auto-detected project constraints
+ *   9. Patch .gitignore with harness-generated entries
+ *  10. Create Claude memory folder (~/.claude/projects/<slug>/memory/)
+ *  11. Install git post-commit hook → npm run harness:sync
+ *  12. Generate docs/ONBOARDING.md (last — reads from AGENTS.md)
  */
 
 import { cpSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
@@ -24,61 +30,14 @@ import { dirname, join, resolve, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
-// ---------------------------------------------------------------------------
-// Shared stack detection (mirrors install.mjs — kept here to avoid import
-// chain issues when init.mjs runs before harness/ exists in the target)
-// ---------------------------------------------------------------------------
+const HERE   = dirname(fileURLToPath(import.meta.url))  // dev-harness root
+const TARGET = process.cwd()                             // user's project root
 
-function readPkg(root) {
-  const p = join(root, 'package.json')
-  if (!existsSync(p)) return null
-  try { return JSON.parse(readFileSync(p, 'utf8')) } catch { return null }
-}
+const args  = process.argv.slice(2)
+const DRY   = args.includes('--dry-run')
+const FORCE = args.includes('--force') // regenerate even if files exist
 
-function detectStack(root) {
-  const pkg = readPkg(root)
-  if (!pkg) return null
-  const deps = { ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies }
-  const has = (n) => n in deps
-
-  let framework = 'none'
-  if (has('nuxt') || has('@nuxt/core')) framework = 'Nuxt'
-  else if (has('next')) framework = 'Next.js'
-  else if (has('@sveltejs/kit')) framework = 'SvelteKit'
-  else if (has('astro')) framework = 'Astro'
-  else if (has('remix') || has('@remix-run/node')) framework = 'Remix'
-  else if (has('vue')) framework = 'Vue 3'
-  else if (has('react')) framework = 'React'
-  else if (has('svelte')) framework = 'Svelte'
-  else if (has('@nestjs/core')) framework = 'NestJS'
-  else if (has('fastify')) framework = 'Fastify'
-  else if (has('express')) framework = 'Express'
-  else if (has('hono')) framework = 'Hono'
-
-  let test = 'none'
-  if (has('vitest')) test = 'Vitest'
-  else if (has('jest') || has('@jest/core')) test = 'Jest'
-  else if (has('mocha')) test = 'Mocha'
-  else if (has('@playwright/test')) test = 'Playwright'
-
-  const lang = has('typescript') ? 'TypeScript' : 'JavaScript'
-
-  return {
-    name: pkg.name || 'my-project',
-    lang,
-    framework,
-    test,
-    version: pkg.version || '0.1.0',
-  }
-}
-
-const HERE = dirname(fileURLToPath(import.meta.url))   // dev-harness root
-const TARGET = process.cwd()                            // user's project root
-
-const args = process.argv.slice(2)
-const DRY = args.includes('--dry-run')
-
-// Guard: don't install dev-harness into itself
+// Guard: never install dev-harness into itself
 if (resolve(TARGET) === resolve(HERE)) {
   console.error('\n⚠  Run this from your PROJECT root, not from inside dev-harness.\n')
   console.error(`   cd /path/to/your-project`)
@@ -86,20 +45,20 @@ if (resolve(TARGET) === resolve(HERE)) {
   process.exit(1)
 }
 
-const HARNESS_SRC = join(HERE, 'harness')
+const HARNESS_SRC  = join(HERE, 'harness')
 const HARNESS_DEST = join(TARGET, 'harness')
 
 // ---------------------------------------------------------------------------
-// Step 1 — copy harness/ folder
+// Step 1 — Copy harness/
 // ---------------------------------------------------------------------------
 
 function copyHarness() {
   if (existsSync(HARNESS_DEST)) {
-    console.log('  ↩  harness/ already exists — skipping copy.')
+    console.log('  ↩  harness/ already exists.')
     return false
   }
   if (DRY) {
-    console.log(`  [dry-run] would copy harness/ → ${relative(process.cwd(), HARNESS_DEST)}/`)
+    console.log(`  [dry-run] would copy harness/ → ${relative(TARGET, HARNESS_DEST)}/`)
     return false
   }
   cpSync(HARNESS_SRC, HARNESS_DEST, { recursive: true })
@@ -108,12 +67,13 @@ function copyHarness() {
 }
 
 // ---------------------------------------------------------------------------
-// Step 2 — add scripts to package.json
+// Step 2 — Add scripts to package.json
 // ---------------------------------------------------------------------------
 
 const SCRIPTS = {
   'arch':              'node harness/arch-map.mjs',
   'arch:watch':        'node harness/arch-serve.mjs',
+  'harness:sync':      'node harness/sync.mjs',
   'harness:install':   'node harness/install.mjs',
   'harness:check':     'node harness/context-sync/hash-check.mjs',
   'harness:baseline':  'node harness/context-sync/hash-check.mjs --update',
@@ -125,13 +85,9 @@ const SCRIPTS = {
 function addScripts() {
   const pkgPath = join(TARGET, 'package.json')
 
-  // Create a minimal package.json if none exists
   if (!existsSync(pkgPath)) {
-    if (DRY) {
-      console.log(`  [dry-run] would create package.json with harness scripts`)
-      return
-    }
-    const minimal = { name: 'my-project', version: '0.1.0', type: 'module', scripts: SCRIPTS }
+    if (DRY) { console.log('  [dry-run] would create package.json'); return }
+    const minimal = { name: require_name(), version: '0.1.0', type: 'module', scripts: SCRIPTS }
     writeFileSync(pkgPath, JSON.stringify(minimal, null, 2) + '\n')
     console.log('  ✅ Created package.json with harness scripts')
     return
@@ -141,7 +97,7 @@ function addScripts() {
   try {
     pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
   } catch (e) {
-    console.error(`  ⚠  package.json is not valid JSON (${e.message}) — scripts not added.`)
+    console.error(`  ⚠  package.json is not valid JSON — scripts not added.`)
     return
   }
 
@@ -154,149 +110,69 @@ function addScripts() {
     }
   }
 
-  if (added.length === 0) {
-    console.log('  ↩  All harness scripts already in package.json.')
-    return
-  }
-
-  if (DRY) {
-    console.log(`  [dry-run] would add scripts: ${added.join(', ')}`)
-    return
-  }
+  if (!added.length) { console.log('  ↩  All scripts already present.'); return }
+  if (DRY) { console.log(`  [dry-run] would add: ${added.join(', ')}`); return }
 
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
-  console.log(`  ✅ Added scripts to package.json: ${added.join(', ')}`)
+  console.log(`  ✅ Added scripts: ${added.join(', ')}`)
+}
+
+function require_name() {
+  try { return require_basename(TARGET) } catch { return 'my-project' }
+}
+function require_basename(p) {
+  return p.replace(/\\/g, '/').split('/').filter(Boolean).pop() || 'my-project'
 }
 
 // ---------------------------------------------------------------------------
-// Step 3 — patch architecture.json with real project name
+// Steps 3-6 — Analyze + Generate
 // ---------------------------------------------------------------------------
 
-function patchArchName() {
-  const archPath = join(HARNESS_DEST, 'architecture.json')
-  const stack = detectStack(TARGET)
-  const name = stack?.name || 'my-project'
-
-  // Create from template if missing (harness/ existed before architecture.json was added)
-  if (!existsSync(archPath)) {
-    const tmpl = join(HARNESS_SRC, 'architecture.json')
-    if (!existsSync(tmpl)) {
-      console.log('  ⚠  architecture.json template not found — skipping.')
-      return
-    }
-    if (DRY) {
-      console.log(`  [dry-run] would create harness/architecture.json with name "${name}"`)
-      return
-    }
-    let arch
-    try { arch = JSON.parse(readFileSync(tmpl, 'utf8')) } catch { return }
-    arch.name = name
-    writeFileSync(archPath, JSON.stringify(arch, null, 2) + '\n')
-    console.log(`  ✅ Created harness/architecture.json (name: "${name}")`)
-    return
+async function runGeneration() {
+  // Run analyze + generate from the TARGET's installed harness
+  const analyzeScript = join(HARNESS_DEST, 'analyze.mjs')
+  if (!existsSync(analyzeScript)) {
+    console.warn('  ⚠  harness/analyze.mjs not found — skipping generation.')
+    return null
   }
 
-  let arch
-  try { arch = JSON.parse(readFileSync(archPath, 'utf8')) } catch { return }
+  const { projectModel } = await import(analyzeScript)
+  const model = projectModel(TARGET)
 
-  if (arch.name && arch.name !== 'My Project') {
-    console.log(`  ↩  architecture.json name already set ("${arch.name}").`)
-    return
-  }
+  console.log(`  Detected: ${model.state} · ${model.lang} · ${model.framework}`)
+  if (model.zones?.length) console.log(`  Zones:    ${model.zones.map((z) => z.path).join(', ')}`)
 
   if (DRY) {
-    console.log(`  [dry-run] would set architecture.json name → "${name}"`)
-    return
+    console.log('  [dry-run] would generate AGENTS.md, architecture.json, tracked-files.json')
+    return model
   }
 
-  arch.name = name
-  writeFileSync(archPath, JSON.stringify(arch, null, 2) + '\n')
-  console.log(`  ✅ Set architecture.json name → "${name}"`)
+  // AGENTS.md
+  const { generateAgents } = await import(join(HARNESS_DEST, 'generate-agents.mjs'))
+  const agentsResult = generateAgents(TARGET, model)
+  if (agentsResult.created)       console.log('  ✅ Generated AGENTS.md')
+  else if (agentsResult.updated)  console.log('  ✅ Synced AGENTS.md')
+  else                            console.log('  ↩  AGENTS.md exists — auto blocks synced')
+
+  // architecture.json
+  const { generateArch } = await import(join(HARNESS_DEST, 'generate-arch.mjs'))
+  const archResult = generateArch(TARGET, model)
+  if (archResult.created)  console.log(`  ✅ Generated architecture.json (${archResult.zones} zones, ${archResult.nodes} nodes)`)
+  else if (archResult.updated) console.log('  ✅ Synced architecture.json')
+  else                     console.log('  ↩  architecture.json exists — new entries merged')
+
+  // tracked-files.json
+  const { generateTracked } = await import(join(HARNESS_DEST, 'generate-tracked.mjs'))
+  const trackedResult = generateTracked(TARGET, model)
+  if (trackedResult.created)       console.log(`  ✅ Generated tracked-files.json (${trackedResult.count} entries)`)
+  else if (trackedResult.updated)  console.log('  ✅ Synced tracked-files.json')
+  else                             console.log('  ↩  tracked-files.json up to date')
+
+  return model
 }
 
 // ---------------------------------------------------------------------------
-// Step 4 — generate docs/ONBOARDING.md from detected stack
-// ---------------------------------------------------------------------------
-
-function generateOnboarding() {
-  const dest = join(TARGET, 'docs', 'ONBOARDING.md')
-  if (existsSync(dest)) {
-    console.log('  ↩  docs/ONBOARDING.md already exists — left unchanged.')
-    return
-  }
-
-  const stack = detectStack(TARGET)
-  const pkg = readPkg(TARGET)
-  const name = stack?.name || 'my-project'
-  const displayName = name.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-
-  const runCmd = pkg?.scripts?.dev
-    ? 'npm run dev'
-    : pkg?.scripts?.start
-      ? 'npm start'
-      : 'npm run dev'
-
-  const buildCmd = pkg?.scripts?.build ? 'npm run build' : null
-  const testSection = stack?.test && stack.test !== 'none'
-    ? `## Running tests\n\n\`\`\`bash\nnpm test\n\`\`\`\n\n`
-    : ''
-  const buildSection = buildCmd
-    ? `## Building for production\n\n\`\`\`bash\n${buildCmd}\n\`\`\`\n\n`
-    : ''
-
-  const content = `# ${displayName} — Onboarding
-
-## What is this?
-
-${displayName} is a ${stack?.framework && stack.framework !== 'none' ? stack.framework + ' ' : ''}${stack?.lang || 'JavaScript'} project.
-Update this section to describe what the project does and who it's for.
-
-## Prerequisites
-
-- Node 18+
-- Git
-
-## Getting started
-
-\`\`\`bash
-git clone <repo-url>
-cd ${name}
-npm install
-${runCmd}
-\`\`\`
-
-${testSection}${buildSection}## Project structure
-
-\`\`\`
-# Fill this in — top-level folders and what they contain
-\`\`\`
-
-## Key files
-
-| File | Purpose |
-| --- | --- |
-| \`package.json\` | Dependencies and scripts |
-| \`harness/architecture.json\` | Component graph for the dashboard |
-
-## Common tasks
-
-- **Add a feature:** describe the pattern here
-- **Fix a bug:** describe the pattern here
-- **Deploy:** describe the process here
-`
-
-  if (DRY) {
-    console.log(`  [dry-run] would create docs/ONBOARDING.md for "${displayName}"`)
-    return
-  }
-
-  mkdirSync(join(TARGET, 'docs'), { recursive: true })
-  writeFileSync(dest, content)
-  console.log(`  ✅ Generated docs/ONBOARDING.md`)
-}
-
-// ---------------------------------------------------------------------------
-// Step 5-8 — delegate to install.mjs in the target project
+// Steps 7-11 — delegate to harness/install.mjs
 // ---------------------------------------------------------------------------
 
 function runInstall() {
@@ -308,9 +184,9 @@ function runInstall() {
 
   const installArgs = ['harness/install.mjs', ...(DRY ? ['--dry-run'] : [])]
   const result = spawnSync('node', installArgs, {
-    cwd: TARGET,
-    stdio: 'inherit',
-    shell: false,
+    cwd:    TARGET,
+    stdio:  'inherit',
+    shell:  false,
   })
 
   if (result.error) {
@@ -319,23 +195,51 @@ function runInstall() {
 }
 
 // ---------------------------------------------------------------------------
+// Step 12 — ONBOARDING.md (last, after AGENTS.md is ready)
+// ---------------------------------------------------------------------------
+
+async function runOnboarding(model) {
+  if (!model) return
+
+  const onboardingScript = join(HARNESS_DEST, 'generate-onboarding.mjs')
+  if (!existsSync(onboardingScript)) return
+
+  if (DRY) {
+    console.log('  [dry-run] would generate docs/ONBOARDING.md')
+    return
+  }
+
+  const { generateOnboarding } = await import(onboardingScript)
+  const result = generateOnboarding(TARGET, model)
+
+  if (result.created) console.log('  ✅ Generated docs/ONBOARDING.md')
+  else                console.log('  ↩  docs/ONBOARDING.md already exists — left unchanged')
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
 console.log(`\ndev-harness init${DRY ? ' [dry-run]' : ''} → ${TARGET}\n`)
 
-console.log('Harness folder →')
+console.log('[ 1 ] Harness folder →')
 copyHarness()
 
-console.log('Scripts →')
+console.log('\n[ 2 ] Package scripts →')
 addScripts()
 
-console.log('Project name →')
-patchArchName()
+console.log('\n[ 3-6 ] Project analysis + generation →')
+const model = await runGeneration()
 
-console.log('Onboarding →')
-generateOnboarding()
-
+console.log('\n[ 7-11 ] Claude hooks + CLAUDE.md + .gitignore + memory →')
 runInstall()
 
-console.log(`\nAll done. Open the dashboard:\n\n  npm run arch:watch\n`)
+console.log('\n[ 12 ] Onboarding →')
+await runOnboarding(model)
+
+console.log(`\n${'─'.repeat(50)}`)
+console.log(`\n  All done.\n`)
+console.log(`  Start the dashboard:\n`)
+console.log(`    npm run arch:watch\n`)
+console.log(`  Sync after changes:\n`)
+console.log(`    npm run harness:sync\n`)
