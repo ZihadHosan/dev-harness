@@ -25,7 +25,7 @@
  *  12. Generate docs/ONBOARDING.md (last — reads from AGENTS.md)
  */
 
-import { cpSync, existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
+import { cpSync, copyFileSync, existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { dirname, join, resolve, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
@@ -56,45 +56,36 @@ const HARNESS_SRC  = join(HERE, 'harness')
 const HARNESS_DEST = join(TARGET, 'harness')
 
 // ---------------------------------------------------------------------------
-// Step 1 — Copy / update harness/
+// Step 1 — Install / reinstall harness/
 // ---------------------------------------------------------------------------
-
-// User data files that must never be overwritten on update
-const PRESERVE_PATHS = new Set([
-  'architecture.json',
-  'notes.json',
-  'arch-map.html',
-  'context-sync/tracked-files.json',
-  'context-sync/assertions.json',
-  'context-sync/baseline.json',
-])
 
 function copyHarness() {
   if (!existsSync(HARNESS_DEST)) {
     if (DRY) {
-      console.log(`  [dry-run] would copy harness/ → ${relative(TARGET, HARNESS_DEST)}/`)
-      return false
+      console.log(`  [dry-run] would install harness/ → ${relative(TARGET, HARNESS_DEST)}/`)
+      return
     }
     cpSync(HARNESS_SRC, HARNESS_DEST, { recursive: true })
-    console.log('  ✅ Copied harness/')
-    return true
+    console.log('  ✅ Installed harness/')
+    return
   }
 
-  // harness/ already exists — refresh all tool scripts, preserve user data
-  if (DRY) {
-    console.log('  [dry-run] harness/ exists — would refresh tool scripts')
-    return false
-  }
-  cpSync(HARNESS_SRC, HARNESS_DEST, {
-    recursive: true,
-    force: true,
-    filter: (src) => {
-      const rel = relative(HARNESS_SRC, src).replace(/\\/g, '/')
-      return !PRESERVE_PATHS.has(rel)
-    },
-  })
-  console.log('  ✅ Updated harness/ scripts')
-  return false
+  // Existing installation — uninstall cleanly, then fresh install
+  console.log('  Existing installation detected — uninstalling first...')
+
+  // Ensure the latest uninstall.mjs is available even in old installs
+  const uninstallSrc  = join(HARNESS_SRC, 'uninstall.mjs')
+  const uninstallDest = join(HARNESS_DEST, 'uninstall.mjs')
+  if (!DRY) copyFileSync(uninstallSrc, uninstallDest)
+
+  const uninstallArgs = ['harness/uninstall.mjs', ...(DRY ? ['--dry-run'] : [])]
+  const result = spawnSync('node', uninstallArgs, { cwd: TARGET, stdio: 'inherit', shell: false })
+  if (result.error) console.log(`  ⚠  Uninstall warning: ${result.error.message}`)
+
+  if (DRY) return
+
+  cpSync(HARNESS_SRC, HARNESS_DEST, { recursive: true })
+  console.log('  ✅ Reinstalled harness/')
 }
 
 // ---------------------------------------------------------------------------
