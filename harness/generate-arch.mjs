@@ -207,8 +207,8 @@ function mergeArch(existing, model) {
     changed = true
   }
 
-  // Update project name if still at default
-  if (!existing.name || existing.name === 'My Project') {
+  // Always sync project name from the detected model
+  if (!existing.name || existing.name !== model.name) {
     existing.name = model.name
     changed = true
   }

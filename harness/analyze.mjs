@@ -33,7 +33,7 @@ const SKIP_DIRS = new Set([
   'node_modules', '.git', 'dist', 'build', '.nuxt', '.next', '.svelte-kit',
   '.output', '.cache', '__pycache__', 'vendor', 'target', '.idea', '.vscode',
   'coverage', '.nyc_output', 'tmp', 'temp', '.turbo', '.vercel', '.netlify',
-  'public', 'static', 'assets', '.expo', '.angular', 'harness',
+  'public', 'static', 'assets', '.expo', '.angular', 'harness', 'dev-harness',
 ])
 
 const CODE_EXTENSIONS = new Set([
