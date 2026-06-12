@@ -58,7 +58,14 @@ async function run() {
 
   writeFileSync(
     join(HERE, 'health.json'),
-    JSON.stringify({ blocking: b, debt: d, inProgress: g, scannedAt: new Date().toISOString() }, null, 2) + '\n'
+    JSON.stringify({
+      blocking: b,
+      debt: d,
+      inProgress: g,
+      blockingItems: model.health?.blocking || [],
+      debtItems: model.health?.debt || [],
+      scannedAt: new Date().toISOString(),
+    }, null, 2) + '\n'
   )
 
   // Phase 2 — AGENTS.md

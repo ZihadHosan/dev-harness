@@ -73,6 +73,54 @@ export function generate({ quiet = false } = {}) {
   model.onboarding = existsSync(ONBOARDING_FILE) ? readFileSync(ONBOARDING_FILE, 'utf8') : ''
   model.projectName = arch.name || 'My Project'
   model.scanHealth = existsSync(HEALTH_FILE) ? readJson(HEALTH_FILE, null, quiet) : null
+
+  // Upgrade node statuses from source-scan signals
+  if (model.scanHealth) {
+    const blockingItems = model.scanHealth.blockingItems || []
+    const debtItems     = model.scanHealth.debtItems     || []
+
+    const inNode = (signalFile, nodePath) => {
+      const sf = signalFile.replace(/\\/g, '/')
+      const np = nodePath.replace(/\\/g, '/')
+      return sf === np || sf.startsWith(np + '/')
+    }
+
+    for (const node of model.nodes) {
+      if (!node.path) continue
+      // Never downgrade an assertion-driven crit
+      if (node.status === 'crit') continue
+
+      const bHits = blockingItems.filter((i) => inNode(i.file, node.path))
+      if (bHits.length) {
+        node.status = 'crit'
+        node.reasons = [...(node.reasons || []), {
+          sev: 'P0',
+          text: `Source scan: ${bHits.length} blocking signal(s) in ${node.path}`,
+        }]
+        continue
+      }
+
+      if (node.status === 'ok') {
+        const dHits = debtItems.filter((i) => inNode(i.file, node.path))
+        if (dHits.length) {
+          node.status = 'debt'
+          node.reasons = [...(node.reasons || []), {
+            sev: 'P2',
+            text: `Source scan: ${dHits.length} debt signal(s) in ${node.path}`,
+          }]
+        }
+      }
+    }
+
+    // Recompute counts after status upgrades
+    model.counts = {
+      crit: model.nodes.filter((n) => n.status === 'crit').length,
+      debt: model.nodes.filter((n) => n.status === 'debt').length,
+      wip:  model.nodes.filter((n) => n.status === 'wip').length,
+      ok:   model.nodes.filter((n) => n.status === 'ok').length,
+    }
+  }
+
   writeFileSync(OUT_FILE, renderArchHtml(model))
   return { model, outFile: OUT_FILE }
 }
