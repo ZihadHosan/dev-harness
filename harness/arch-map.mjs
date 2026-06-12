@@ -102,13 +102,16 @@ function cli() {
     return 1
   }
 
-  const c = model.counts
+  const c  = model.counts
+  const sh = model.scanHealth
+  const blocking = sh != null ? sh.blocking : c.crit
+  const debt     = sh != null ? sh.debt     : c.debt
   if (quiet) {
     const drift = model.drift.length ? ` · ${model.drift.length} DRIFT` : ''
-    console.log(`🗺️  arch-map: ${c.crit} blocking · ${c.debt} debt · ${c.ok} healthy${drift} → harness/arch-map.html`)
+    console.log(`🗺️  arch-map: ${blocking} blocking · ${debt} debt · ${c.ok} healthy${drift} → harness/arch-map.html`)
   } else {
     console.log(`\n🗺️  Architecture map written → harness/arch-map.html`)
-    console.log(`   Blocking ${c.crit} · Tech debt ${c.debt} · In progress ${c.wip} · Healthy ${c.ok}\n`)
+    console.log(`   Blocking ${blocking} · Tech debt ${debt} · In progress ${c.wip} · Healthy ${c.ok}\n`)
     const reds = model.nodes.filter((n) => n.status === 'crit')
     if (reds.length) {
       console.log('   Blocking nodes:')
