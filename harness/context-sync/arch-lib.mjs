@@ -917,14 +917,14 @@ export function renderArchHtml(model) {
 
   const c = model.counts
   const sh = model.scanHealth ?? null
-  const summaryBlocking = sh != null ? sh.blocking : c.crit
-  const summaryDebt     = sh != null ? sh.debt     : c.debt
+  const sigDebt     = sh != null && sh.debt     !== c.debt  ? '<span class="leg-sig">' + sh.debt     + ' signals</span>' : ''
+  const sigBlocking = sh != null && sh.blocking !== c.crit  ? '<span class="leg-sig">' + sh.blocking + ' signals</span>' : ''
 
   const summary =
     '<button class="reset-filter" data-act="reset-filter" title="Show all nodes">Reset filter</button>' +
     '<span class="leg" data-act="filter-status" data-status="ok" title="Show healthy nodes"><span class="dot ok"></span>Healthy <b>' + c.ok + '</b></span>' +
-    '<span class="leg" data-act="filter-status" data-status="debt" title="Show components with tech debt"><span class="dot debt"></span>Tech debt <b>' + summaryDebt + '</b></span>' +
-    '<span class="leg" data-act="filter-status" data-status="crit" title="Show blocking components"><span class="dot crit"></span>Blocking <b>' + summaryBlocking + '</b></span>' +
+    '<span class="leg" data-act="filter-status" data-status="debt" title="Filter to components with tech debt (' + c.debt + ' component' + (c.debt !== 1 ? 's' : '') + ', ' + (sh ? sh.debt : c.debt) + ' signals)"><span class="dot debt"></span>Tech debt <b>' + c.debt + '</b>' + sigDebt + '</span>' +
+    '<span class="leg" data-act="filter-status" data-status="crit" title="Filter to blocking components (' + c.crit + ' component' + (c.crit !== 1 ? 's' : '') + ', ' + (sh ? sh.blocking : c.crit) + ' signals)"><span class="dot crit"></span>Blocking <b>' + c.crit + '</b>' + sigBlocking + '</span>' +
     '<span class="leg" data-act="filter-status" data-status="wip" title="Show in progress"><span class="dot wip"></span>In progress <b>' + c.wip + '</b></span>'
 
   const driftBanner = model.drift.length
@@ -943,7 +943,8 @@ export function renderArchHtml(model) {
     '.summary{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:22px;font-size:16px;align-items:center}' +
     '.reset-filter{font:inherit;font-size:13px;background:none;border:1px solid var(--bd);border-radius:6px;color:var(--tx2);cursor:pointer;padding:4px 10px;margin-right:8px}' +
     '.reset-filter:hover{border-color:var(--tx3);color:var(--tx)}' +
-    '.leg{display:flex;align-items:center;gap:9px;color:var(--tx2);cursor:pointer;padding:6px 10px;border-radius:6px;border:1px solid transparent;transition:all 150ms ease}' +
+    '.leg{display:flex;align-items:center;gap:6px;color:var(--tx2);cursor:pointer;padding:6px 10px;border-radius:6px;border:1px solid transparent;transition:all 150ms ease}' +
+    '.leg-sig{font-size:11px;color:var(--tx3);font-weight:400;margin-left:2px}' +
     '.leg:hover{color:var(--tx)}' +
     '.leg.active{color:var(--tx);background:rgba(255,255,255,0.06)}' +
     '.leg.active[data-status="ok"]{border-color:#0cff2c}' +
