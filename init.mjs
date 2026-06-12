@@ -27,8 +27,10 @@
 
 import { cpSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
+
+const toFileUrl = (p) => pathToFileURL(p).href
 
 const HERE   = dirname(fileURLToPath(import.meta.url))  // dev-harness root
 const TARGET = process.cwd()                             // user's project root
@@ -136,7 +138,7 @@ async function runGeneration() {
     return null
   }
 
-  const { projectModel } = await import(analyzeScript)
+  const { projectModel } = await import(toFileUrl(analyzeScript))
   const model = projectModel(TARGET)
 
   console.log(`  Detected: ${model.state} · ${model.lang} · ${model.framework}`)
@@ -148,21 +150,21 @@ async function runGeneration() {
   }
 
   // AGENTS.md
-  const { generateAgents } = await import(join(HARNESS_DEST, 'generate-agents.mjs'))
+  const { generateAgents } = await import(toFileUrl(join(HARNESS_DEST, 'generate-agents.mjs')))
   const agentsResult = generateAgents(TARGET, model)
   if (agentsResult.created)       console.log('  ✅ Generated AGENTS.md')
   else if (agentsResult.updated)  console.log('  ✅ Synced AGENTS.md')
   else                            console.log('  ↩  AGENTS.md exists — auto blocks synced')
 
   // architecture.json
-  const { generateArch } = await import(join(HARNESS_DEST, 'generate-arch.mjs'))
+  const { generateArch } = await import(toFileUrl(join(HARNESS_DEST, 'generate-arch.mjs')))
   const archResult = generateArch(TARGET, model)
   if (archResult.created)  console.log(`  ✅ Generated architecture.json (${archResult.zones} zones, ${archResult.nodes} nodes)`)
   else if (archResult.updated) console.log('  ✅ Synced architecture.json')
   else                     console.log('  ↩  architecture.json exists — new entries merged')
 
   // tracked-files.json
-  const { generateTracked } = await import(join(HARNESS_DEST, 'generate-tracked.mjs'))
+  const { generateTracked } = await import(toFileUrl(join(HARNESS_DEST, 'generate-tracked.mjs')))
   const trackedResult = generateTracked(TARGET, model)
   if (trackedResult.created)       console.log(`  ✅ Generated tracked-files.json (${trackedResult.count} entries)`)
   else if (trackedResult.updated)  console.log('  ✅ Synced tracked-files.json')
@@ -209,7 +211,7 @@ async function runOnboarding(model) {
     return
   }
 
-  const { generateOnboarding } = await import(onboardingScript)
+  const { generateOnboarding } = await import(toFileUrl(onboardingScript))
   const result = generateOnboarding(TARGET, model)
 
   if (result.created) console.log('  ✅ Generated docs/ONBOARDING.md')
