@@ -71,8 +71,8 @@ harness/
 
 ```bash
 npm run harness:install   # Zero-config setup (hooks + CLAUDE.md + .gitignore + memory)
-npm run arch              # Regenerate harness/arch-map.html
-npm run arch:watch        # Live watch server on http://localhost:4319
+npm run harness:map       # Regenerate harness/arch-map.html
+npm run harness:watch     # Live dashboard on http://localhost:4319
 npm run harness:check     # List tracked files changed since baseline
 npm run harness:baseline  # Reset the baseline after re-reading changes
 npm run harness:verify    # Check doc claims still match the code

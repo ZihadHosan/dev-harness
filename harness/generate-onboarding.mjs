@@ -114,7 +114,7 @@ function buildOnboarding(model) {
     'Run the live dashboard to see component health, open todos, and planning notes:',
     '',
     '```bash',
-    'npm run arch:watch',
+    'npm run harness:watch',
     '```',
     '',
     'Opens at `http://localhost:4319`. Stays live as you work — no manual refresh needed.',
@@ -153,7 +153,7 @@ function buildOnboarding(model) {
     '| Start dev server | `' + runCmd + '` |',
     test && test !== 'none' ? '| Run tests | `npm test` |' : null,
     buildCmd ? '| Build for production | `' + buildCmd + '` |' : null,
-    '| Open architecture map | `npm run arch:watch` |',
+    '| Open architecture map | `npm run harness:watch` |',
     '| Sync project analysis | `npm run harness:sync` |',
     '',
   ].filter(Boolean)
@@ -182,7 +182,7 @@ function buildOnboarding(model) {
       '## Current health',
       '',
       `> At time of generation: **${blocking} blocking** issue${blocking !== 1 ? 's' : ''}, **${debt} tech debt** signal${debt !== 1 ? 's' : ''}.`,
-      `> Run \`npm run arch:watch\` for live status.`,
+      `> Run \`npm run harness:watch\` for live status.`,
       '',
     )
   }

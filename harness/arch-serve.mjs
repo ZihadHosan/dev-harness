@@ -5,7 +5,7 @@
  * Regenerates harness/arch-map.html, serves it on localhost, and live-reloads the browser
  * whenever a signal that drives the map changes (TODO.md, architecture.json, assertions.json,
  * or any node's own source file). Run it in the background and leave the tab open — it tracks
- * the project's health as you work, no manual `npm run arch` needed.
+ * the project's health as you work, no manual `npm run harness:map` needed.
  *
  * Usage:
  *   node harness/arch-serve.mjs               # serve on :4319 + open the browser
@@ -149,7 +149,7 @@ const server = createServer(async (req, res) => {
 
 server.on('error', (e) => {
   if (e.code === 'EADDRINUSE') {
-    log(`port ${PORT} is in use — restart with --port <n> (e.g. npm run arch:watch -- --port 5000)`)
+    log(`port ${PORT} is in use — restart with --port <n> (e.g. npm run harness:watch -- --port 5000)`)
     process.exit(1)
   }
   log(`server error: ${e.message}`)

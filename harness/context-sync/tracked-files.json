@@ -19,7 +19,7 @@
     },
     {
       "path": "harness/notes.json",
-      "reason": "Planning board — open todos, ideas, remarks captured via arch:watch UI"
+      "reason": "Planning board — open todos, ideas, remarks captured via harness:watch UI"
     },
     {
       "path": "AGENTS.md",

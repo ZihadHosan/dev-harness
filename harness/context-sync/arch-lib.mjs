@@ -289,7 +289,7 @@ const BROWSER_JS = `
     lines.push('## How to use this context');
     lines.push('- Reference notes by their ID (e.g. '+BT+'n_abc123'+BT+') — IDs are stable across sessions');
     lines.push('- File paths are relative to the repo root');
-    lines.push('- After completing work on a note, mark it done in the Planning tab ('+BT+'npm run arch:watch'+BT+')');
+    lines.push('- After completing work on a note, mark it done in the Planning tab ('+BT+'npm run harness:watch'+BT+')');
     lines.push('- notes.json is a harness-tracked file — Claude re-reads it at session start if changed');
     lines.push('- The architecture map shows live component health derived from assertions + TODO.md');
     lines.push('');
@@ -338,7 +338,7 @@ const BROWSER_JS = `
     }
     lines.push('---');
     lines.push('*Auto-generated from harness/notes.json + harness/architecture.json.*');
-    lines.push('*Run '+BT+'npm run arch:watch'+BT+' for live health. Edit notes via the Planning tab.*');
+    lines.push('*Run '+BT+'npm run harness:watch'+BT+' for live health. Edit notes via the Planning tab.*');
     return lines.join(String.fromCharCode(10));
   }
   function buildNodeCopyPrompt(nodeId){
@@ -440,7 +440,7 @@ const BROWSER_JS = `
       + '</div>';
   }
   function addForm(key){
-    if (!NOTES_ON) return '<span class="notes-off">Run npm run arch:watch to capture notes.</span>';
+    if (!NOTES_ON) return '<span class="notes-off">Run npm run harness:watch to capture notes.</span>';
     return '<div class="note-add">'
       + '<div class="note-add-row">'
       + '<select id="nk-'+esc(key)+'"><option value="remark">remark</option><option value="idea">idea</option><option value="todo">todo</option></select>'
@@ -453,7 +453,7 @@ const BROWSER_JS = `
   function notesSection(key){
     var list = notesFor(key);
     var h = '<div class="notes-sec"><div class="notes-h">Planning notes';
-    if (!NOTES_ON) h += ' <span class="notes-off">(run npm run arch:watch to add)</span>';
+    if (!NOTES_ON) h += ' <span class="notes-off">(run npm run harness:watch to add)</span>';
     h += '</div>';
     for (var i=0;i<list.length;i++) h += noteRow(list[i]);
     if (!list.length && NOTES_ON) h += '<div class="notes-off">No notes on this component yet.</div>';
@@ -900,7 +900,7 @@ export function renderArchHtml(model) {
   const driftBanner = model.drift.length
     ? '<div class="drift"><b>Drift detected — the graph no longer matches the repo:</b><ul>' +
       model.drift.map((d) => '<li>' + escapeHtml(d) + '</li>').join('') +
-      '</ul>Fix architecture.json (or restore the file), then re-run <code>npm run arch</code>.</div>'
+      '</ul>Fix architecture.json (or restore the file), then re-run <code>npm run harness:map</code>.</div>'
     : ''
 
   const css =
@@ -1146,7 +1146,7 @@ export function renderArchHtml(model) {
     '<div class="board-add" id="board-add"></div>' +
     '<div class="board" id="board"></div>' +
     '</div>' +
-    '<footer>npm run arch — regenerate after any code/TODO change · npm run arch -- --strict fails CI on drift</footer>' +
+    '<footer>npm run harness:map — regenerate after any code/TODO change · npm run harness:map -- --strict fails CI on drift</footer>' +
     '<div class="modal-overlay hidden" id="delete-modal">' +
     '<div class="modal-dialog">' +
     '<div class="modal-title">Delete note?</div>' +

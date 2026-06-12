@@ -20,8 +20,8 @@ If the harness flags a file as changed, re-read it — never answer from cached 
 ## Commands
 
 ```bash
-npm run arch              # regenerate harness/arch-map.html
-npm run arch:watch        # live watch dashboard on http://localhost:4319
+npm run harness:map       # regenerate harness/arch-map.html
+npm run harness:watch     # live dashboard on http://localhost:4319
 npm run harness:sync      # re-analyze project, update AGENTS.md + architecture.json
 npm run harness:check     # list tracked files changed since baseline
 npm run harness:baseline  # reset baseline after re-reading changes

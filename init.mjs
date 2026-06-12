@@ -73,8 +73,8 @@ function copyHarness() {
 // ---------------------------------------------------------------------------
 
 const SCRIPTS = {
-  'arch':              'node harness/arch-map.mjs',
-  'arch:watch':        'node harness/arch-serve.mjs',
+  'harness:map':       'node harness/arch-map.mjs',
+  'harness:watch':     'node harness/arch-serve.mjs',
   'harness:sync':      'node harness/sync.mjs',
   'harness:install':   'node harness/install.mjs',
   'harness:check':     'node harness/context-sync/hash-check.mjs',
@@ -242,6 +242,6 @@ await runOnboarding(model)
 console.log(`\n${'─'.repeat(50)}`)
 console.log(`\n  All done.\n`)
 console.log(`  Start the dashboard:\n`)
-console.log(`    npm run arch:watch\n`)
+console.log(`    npm run harness:watch\n`)
 console.log(`  Sync after changes:\n`)
 console.log(`    npm run harness:sync\n`)

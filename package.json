@@ -7,9 +7,8 @@
     "dev-harness": "./init.mjs"
   },
   "scripts": {
-    "arch":              "node harness/arch-map.mjs",
-    "arch:check":        "node harness/arch-map.mjs --strict",
-    "arch:watch":        "node harness/arch-serve.mjs",
+    "harness:map":       "node harness/arch-map.mjs",
+    "harness:watch":     "node harness/arch-serve.mjs",
     "harness:sync":      "node harness/sync.mjs",
     "harness:install":   "node harness/install.mjs",
     "harness:check":     "node harness/context-sync/hash-check.mjs",

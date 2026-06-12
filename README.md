@@ -10,7 +10,7 @@ Works with or without Claude. Zero npm dependencies.
 
 | Feature | Command |
 |---|---|
-| Live architecture map + health dashboard | `npm run arch:watch` |
+| Live architecture map + health dashboard | `npm run harness:watch` |
 | Project analysis + AGENTS.md sync | `npm run harness:sync` |
 | Claude Code session hooks | auto (via `.claude/settings.json`) |
 | git post-commit sync | auto (git hook installed on init) |
@@ -56,7 +56,7 @@ node dev-harness/init.mjs --dry-run
 
 ```bash
 # Start the live dashboard (leave running in a terminal)
-npm run arch:watch
+npm run harness:watch
 
 # Manually sync project analysis (AGENTS.md + architecture.json)
 npm run harness:sync
@@ -130,7 +130,7 @@ Detected automatically on install and every sync:
 | Trigger | What runs |
 |---|---|
 | `npm run harness:sync` | One-shot — analyze + update AGENTS.md + architecture.json |
-| `npm run arch:watch` | Continuous — re-generates map HTML on file save |
+| `npm run harness:watch` | Continuous — re-generates map HTML on file save |
 | git post-commit hook | Automatic `harness:sync --quiet` after every commit |
 
 ---
@@ -138,8 +138,8 @@ Detected automatically on install and every sync:
 ## Commands
 
 ```bash
-npm run arch              # regenerate harness/arch-map.html
-npm run arch:watch        # live dashboard at http://localhost:4319
+npm run harness:map       # regenerate harness/arch-map.html
+npm run harness:watch     # live dashboard at http://localhost:4319
 npm run harness:sync      # re-analyze + sync AGENTS.md + architecture.json
 npm run harness:install   # re-run hooks / CLAUDE.md / gitignore / memory setup
 npm run harness:check     # list tracked files changed since baseline

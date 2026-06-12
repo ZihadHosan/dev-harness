@@ -17,7 +17,7 @@
  * Triggered by:
  *   npm run harness:sync
  *   git post-commit hook (automatic)
- *   npm run arch:watch (on file save, via arch-serve.mjs)
+ *   npm run harness:watch (on file save, via arch-serve.mjs)
  */
 
 import { resolve, dirname } from 'node:path'
