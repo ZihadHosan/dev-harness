@@ -676,6 +676,11 @@ const BROWSER_JS = `
         allLegs[m].classList.toggle('active', isActive);
       }
     }
+    else if (act==='goto-overview'){
+      e.preventDefault();
+      var ovBtn=document.querySelector('.tab[data-tab="overview"]');
+      if (ovBtn) ovBtn.click();
+    }
     else if (act==='reset-filter'){
       FILTER_STATUS=null;
       var allNodes=document.querySelectorAll('.arch-node');
@@ -891,12 +896,17 @@ export function renderArchHtml(model) {
 
   const c = model.counts
   const sh = model.scanHealth ?? null
+  const scanNote = sh != null
+    ? '<span class="scan-note">Source scan: <span class="sn-crit">' + sh.blocking + ' blocking</span> · <span class="sn-debt">' + sh.debt + ' debt signals</span> in source files · <a data-act="goto-overview">see Overview ↗</a></span>'
+    : ''
+
   const summary =
     '<button class="reset-filter" data-act="reset-filter" title="Show all nodes">Reset filter</button>' +
     '<span class="leg" data-act="filter-status" data-status="ok" title="Show healthy nodes"><span class="dot ok"></span>Healthy <b>' + c.ok + '</b></span>' +
-    '<span class="leg" data-act="filter-status" data-status="debt" title="Show tech debt"><span class="dot debt"></span>Tech debt <b>' + c.debt + '</b></span>' +
-    '<span class="leg" data-act="filter-status" data-status="crit" title="Show blocking"><span class="dot crit"></span>Blocking <b>' + c.crit + '</b></span>' +
-    '<span class="leg" data-act="filter-status" data-status="wip" title="Show in progress"><span class="dot wip"></span>In progress <b>' + c.wip + '</b></span>'
+    '<span class="leg" data-act="filter-status" data-status="debt" title="Show tech debt nodes"><span class="dot debt"></span>Tech debt <b>' + c.debt + '</b></span>' +
+    '<span class="leg" data-act="filter-status" data-status="crit" title="Show blocking nodes"><span class="dot crit"></span>Blocking <b>' + c.crit + '</b></span>' +
+    '<span class="leg" data-act="filter-status" data-status="wip" title="Show in progress nodes"><span class="dot wip"></span>In progress <b>' + c.wip + '</b></span>' +
+    scanNote
 
   const driftBanner = model.drift.length
     ? '<div class="drift"><b>Drift detected — the graph no longer matches the repo:</b><ul>' +
@@ -912,6 +922,8 @@ export function renderArchHtml(model) {
     '.wrap{max-width:1280px;margin:0 auto}h1{font-size:28px;font-weight:600;margin:0 0 6px}' +
     '.meta{color:var(--tx3);font-size:14px;font-family:var(--mono);margin-bottom:22px}' +
     '.summary{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:22px;font-size:16px;align-items:center}' +
+    '.scan-note{width:100%;font-size:12px;color:var(--tx3);font-family:var(--mono);padding-top:6px;border-top:1px solid var(--bd);margin-top:2px}' +
+    '.scan-note .sn-crit{color:#ff6c6c;font-weight:600}.scan-note .sn-debt{color:#f5a117;font-weight:600}.scan-note a{color:var(--tx3);text-decoration:underline;cursor:pointer}' +
     '.reset-filter{font:inherit;font-size:13px;background:none;border:1px solid var(--bd);border-radius:6px;color:var(--tx2);cursor:pointer;padding:4px 10px;margin-right:8px}' +
     '.reset-filter:hover{border-color:var(--tx3);color:var(--tx)}' +
     '.leg{display:flex;align-items:center;gap:9px;color:var(--tx2);cursor:pointer;padding:6px 10px;border-radius:6px;border:1px solid transparent;transition:all 150ms ease}' +
