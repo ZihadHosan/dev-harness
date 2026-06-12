@@ -106,6 +106,7 @@ const SCRIPTS = {
   'harness:watch':     'node harness/arch-serve.mjs',
   'harness:sync':      'node harness/sync.mjs',
   'harness:install':   'node harness/install.mjs',
+  'harness:uninstall': 'node harness/uninstall.mjs',
   'harness:check':     'node harness/context-sync/hash-check.mjs',
   'harness:baseline':  'node harness/context-sync/hash-check.mjs --update',
   'harness:verify':    'node harness/context-sync/verify.mjs',
