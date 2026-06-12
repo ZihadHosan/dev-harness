@@ -370,7 +370,7 @@ const BROWSER_JS = `
         lines.push('');
         for (var bi=0;bi<ss.blocking.length;bi++){
           var b=ss.blocking[bi];
-          lines.push('- `'+b.file+':'+b.line+'` — **'+b.keyword+':** '+b.text);
+          lines.push('- '+BT+b.file+':'+b.line+BT+' — **'+b.keyword+':** '+b.text);
         }
         lines.push('');
       }
@@ -380,9 +380,9 @@ const BROWSER_JS = `
         for (var di=0;di<ss.debt.length;di++){
           var d=ss.debt[di];
           if (d.type==='large-file'){
-            lines.push('- `'+d.file+'` — '+d.lines+' lines');
+            lines.push('- '+BT+d.file+BT+' — '+d.lines+' lines');
           } else {
-            lines.push('- `'+d.file+':'+d.line+'` — console.log');
+            lines.push('- '+BT+d.file+':'+d.line+BT+' — console.log');
           }
         }
         lines.push('');
