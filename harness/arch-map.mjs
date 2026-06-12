@@ -87,28 +87,30 @@ export function generate({ quiet = false } = {}) {
 
     for (const node of model.nodes) {
       if (!node.path) continue
-      // Never downgrade an assertion-driven crit
-      if (node.status === 'crit') continue
 
       const bHits = blockingItems.filter((i) => inNode(i.file, node.path))
+      const dHits = debtItems.filter((i) => inNode(i.file, node.path))
+
+      // Store full signal list on node for the detail panel
+      if (bHits.length || dHits.length) {
+        node.scanSignals = { blocking: bHits, debt: dHits }
+      }
+
+      // Never downgrade an assertion-driven crit (but still store signals above)
+      if (node.status === 'crit') continue
+
       if (bHits.length) {
         node.status = 'crit'
         node.reasons = [...(node.reasons || []), {
           sev: 'P0',
           text: `Source scan: ${bHits.length} blocking signal(s) in ${node.path}`,
         }]
-        continue
-      }
-
-      if (node.status === 'ok') {
-        const dHits = debtItems.filter((i) => inNode(i.file, node.path))
-        if (dHits.length) {
-          node.status = 'debt'
-          node.reasons = [...(node.reasons || []), {
-            sev: 'P2',
-            text: `Source scan: ${dHits.length} debt signal(s) in ${node.path}`,
-          }]
-        }
+      } else if (node.status === 'ok' && dHits.length) {
+        node.status = 'debt'
+        node.reasons = [...(node.reasons || []), {
+          sev: 'P2',
+          text: `Source scan: ${dHits.length} debt signal(s) in ${node.path}`,
+        }]
       }
     }
 
