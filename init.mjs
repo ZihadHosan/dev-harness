@@ -56,21 +56,45 @@ const HARNESS_SRC  = join(HERE, 'harness')
 const HARNESS_DEST = join(TARGET, 'harness')
 
 // ---------------------------------------------------------------------------
-// Step 1 — Copy harness/
+// Step 1 — Copy / update harness/
 // ---------------------------------------------------------------------------
 
+// User data files that must never be overwritten on update
+const PRESERVE_PATHS = new Set([
+  'architecture.json',
+  'notes.json',
+  'arch-map.html',
+  'context-sync/tracked-files.json',
+  'context-sync/assertions.json',
+  'context-sync/baseline.json',
+])
+
 function copyHarness() {
-  if (existsSync(HARNESS_DEST)) {
-    console.log('  ↩  harness/ already exists.')
-    return false
+  if (!existsSync(HARNESS_DEST)) {
+    if (DRY) {
+      console.log(`  [dry-run] would copy harness/ → ${relative(TARGET, HARNESS_DEST)}/`)
+      return false
+    }
+    cpSync(HARNESS_SRC, HARNESS_DEST, { recursive: true })
+    console.log('  ✅ Copied harness/')
+    return true
   }
+
+  // harness/ already exists — refresh all tool scripts, preserve user data
   if (DRY) {
-    console.log(`  [dry-run] would copy harness/ → ${relative(TARGET, HARNESS_DEST)}/`)
+    console.log('  [dry-run] harness/ exists — would refresh tool scripts')
     return false
   }
-  cpSync(HARNESS_SRC, HARNESS_DEST, { recursive: true })
-  console.log('  ✅ Copied harness/')
-  return true
+  cpSync(HARNESS_SRC, HARNESS_DEST, {
+    recursive: true,
+    force: true,
+    filter: (src) => {
+      const rel = relative(HARNESS_SRC, src).replace(/\\/g, '/')
+      return !PRESERVE_PATHS.has(rel)
+    },
+  })
+  console.log('  ✅ Updated harness/ scripts')
+  return false
 }
 
 // ---------------------------------------------------------------------------
