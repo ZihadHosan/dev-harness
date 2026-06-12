@@ -324,6 +324,28 @@ function installGitHook() {
 }
 
 // ---------------------------------------------------------------------------
+// Guard config (lockstep + high-risk) — create once, never overwrite
+// ---------------------------------------------------------------------------
+
+function seedGuardConfig() {
+  const dest = join(HERE, 'context-sync', 'guard-config.json')
+  if (existsSync(dest)) { console.log('  ↩  guard-config.json already exists — preserved.'); return }
+
+  const template = {
+    lockstepGroups: [
+      // { "id": "my-pair", "files": ["src/foo.ts", "apps/bar/src/foo.ts"], "note": "Keep these two copies in sync" }
+    ],
+    highRisk: [
+      // { "match": "server/utils/usage\\.ts", "note": "Money path: reserve→spend→refund order is sacred." }
+    ],
+  }
+
+  if (DRY) { console.log('  [dry-run] would create guard-config.json'); return }
+  writeFileSync(dest, JSON.stringify(template, null, 2) + '\n')
+  console.log('  ✅ Created guard-config.json — add lockstepGroups and highRisk entries to configure.')
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -345,12 +367,17 @@ function main() {
   console.log('Git hook →')
   installGitHook()
 
+  console.log('Guard config →')
+  seedGuardConfig()
+
   console.log('\nDone.\n')
 }
 
+let _exitCode = 0
 try {
   main()
 } catch (e) {
   console.error(`harness install error: ${e.message}`)
+  _exitCode = 1
 }
-process.exit(0)
+process.exit(_exitCode)

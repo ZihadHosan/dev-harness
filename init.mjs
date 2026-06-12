@@ -46,8 +46,9 @@ const IS_NESTED = _rel !== '' && !_rel.startsWith('..')
 
 // Guard: never install dev-harness into itself
 if (resolve(TARGET) === resolve(HERE)) {
+  const examplePath = process.platform === 'win32' ? 'C:\\path\\to\\your-project' : '/path/to/your-project'
   console.error('\n⚠  Run this from your PROJECT root, not from inside dev-harness.\n')
-  console.error(`   cd /path/to/your-project`)
+  console.error(`   cd ${examplePath}`)
   console.error(`   node ${relative(TARGET, join(HERE, 'init.mjs'))}\n`)
   process.exit(1)
 }
@@ -98,7 +99,7 @@ const SCRIPTS = {
   'harness:sync':      'node harness/sync.mjs',
   'harness:install':   'node harness/install.mjs',
   'harness:uninstall':  'node harness/uninstall.mjs',
-  'harness:reinstall':  'npm run harness:uninstall && git clone https://github.com/ZihadHosan/dev-harness && node dev-harness/init.mjs',
+  'harness:reinstall':  'node harness/reinstall.mjs',
   'harness:check':     'node harness/context-sync/hash-check.mjs',
   'harness:baseline':  'node harness/context-sync/hash-check.mjs --update',
   'harness:verify':    'node harness/context-sync/verify.mjs',
@@ -161,7 +162,9 @@ async function runGeneration() {
   }
 
   const { projectModel } = await import(toFileUrl(analyzeScript))
+  process.stdout.write('  Scanning project…')
   const model = projectModel(TARGET)
+  process.stdout.write('\r                      \r')
 
   console.log(`  Detected: ${model.state} · ${model.lang} · ${model.framework}`)
   if (model.zones?.length) console.log(`  Zones:    ${model.zones.map((z) => z.path).join(', ')}`)

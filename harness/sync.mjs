@@ -44,7 +44,9 @@ async function run() {
 
   // Phase 1 — Analyze
   const { projectModel } = await import('./analyze.mjs')
+  if (!QUIET) process.stdout.write('  Scanning project…')
   const model = projectModel(ROOT)
+  if (!QUIET) process.stdout.write('\r                      \r')
 
   logVerbose(`\n  State:   ${model.state}`)
   logVerbose(`  Stack:   ${model.lang} · ${model.framework} · test: ${model.test}`)

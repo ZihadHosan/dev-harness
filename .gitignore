@@ -2,3 +2,8 @@ node_modules/
 harness/arch-map.html
 harness/notes.json
 .env
+# dev-harness — generated (each dev runs init.mjs locally)
+AGENTS.md
+CLAUDE.md
+docs/ONBOARDING.md
+.claude/settings.json

@@ -1131,7 +1131,7 @@ export function renderArchHtml(model) {
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>' + escapeHtml(model.projectName || 'Project') + ' — architecture &amp; health map</title><style>' + css + '</style></head><body><div class="wrap">' +
     '<h1>' + escapeHtml(model.projectName || 'Project') + ' — architecture &amp; health map</h1>' +
-    '<div class="meta">generated ' + escapeHtml(model.generatedAt) + ' · status derived from assertions.json + TODO.md</div>' +
+    '<div class="meta">generated ' + escapeHtml(model.generatedAt) + (model.scanHealth ? ' · health from source scan' : '') + ' · architecture from assertions.json + TODO.md</div>' +
     '<div class="tabs"><button class="tab active" data-tab="overview">Overview</button>' +
     '<button class="tab" data-tab="arch">Architecture &amp; health</button>' +
     '<button class="tab" data-tab="plan">Planning<span class="tab-count" id="plan-count"></span></button></div>' +

@@ -191,12 +191,23 @@ function buildOnboarding(model) {
 }
 
 function detectRunCmd(model) {
-  const framework = model.framework
-  if (framework === 'Nuxt') return 'npm run dev'
-  if (framework === 'Next.js') return 'npm run dev'
-  if (framework === 'SvelteKit') return 'npm run dev'
-  if (framework === 'Vue 3' || framework === 'React' || framework === 'Astro') return 'npm run dev'
-  if (['Express', 'Fastify', 'Hono', 'Koa', 'NestJS'].includes(framework)) return 'npm run dev'
+  const { framework, lang } = model
+
+  if (lang === 'Rust') return 'cargo run'
+  if (lang === 'Go') return 'go run .'
+  if (lang === 'Python') return 'python main.py'
+  if (lang === 'PHP') return 'php -S localhost:8000'
+  if (lang === 'Ruby') return 'bundle exec rails server'
+  if (lang === 'Java') return 'mvn spring-boot:run'
+  if (lang === 'C#') return 'dotnet run'
+
+  if (framework === 'static' || lang === 'HTML') return 'open index.html'
+  if (framework === 'CLI') {
+    const pkgPath = model.keyFiles?.find((f) => f.path === 'package.json')
+    return pkgPath ? 'node src/index.js' : 'npm start'
+  }
+
+  // All JS/TS web frameworks
   return 'npm run dev'
 }
 

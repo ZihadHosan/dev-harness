@@ -29,6 +29,7 @@ const BASELINE = join(PROJECT_ROOT, '.harness-baseline.json')
 const TRACKED = join(HERE, 'context-sync', 'tracked-files.json')
 const TEMPLATE = join(HERE, 'templates', 'settings.json')
 const ASSERTIONS = join(HERE, 'context-sync', 'assertions.json')
+const ARCH_FILE = join(HERE, 'architecture.json')
 
 const argv = process.argv.slice(2)
 const STRICT = argv.includes('--strict')
@@ -76,6 +77,19 @@ try {
 // 3. Baseline present (skipped in CI — it's per-machine + gitignored).
 if (!CI) {
   check('staleness baseline initialized', existsSync(BASELINE), existsSync(BASELINE) ? '' : 'run `npm run harness:baseline` (or start a session — SessionStart seeds it)')
+}
+
+// 3b. architecture.json exists and has nodes.
+try {
+  if (!existsSync(ARCH_FILE)) {
+    check('architecture.json exists', false, 'run `npm run harness:map` to generate it')
+  } else {
+    const arch = JSON.parse(readFileSync(ARCH_FILE, 'utf8'))
+    const nodeCount = (arch.nodes || []).length
+    check(`architecture.json has nodes (${nodeCount})`, nodeCount > 0, nodeCount === 0 ? 'file exists but has no nodes — run `npm run harness:map`' : '')
+  }
+} catch (e) {
+  check('architecture.json is valid JSON', false, e.message)
 }
 
 // 4. Doc-vs-reality assertions hold.
