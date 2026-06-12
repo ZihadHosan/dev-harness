@@ -49,6 +49,46 @@ const CONSOLE_LOG_PATTERN = /\bconsole\.(log|debug|info)\s*\(/
 const LARGE_FILE_LINES = 300
 
 // ---------------------------------------------------------------------------
+// Full-scan constants
+// ---------------------------------------------------------------------------
+
+const SKIP_EXTENSIONS_FULL = new Set([
+  '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.avif', '.bmp', '.tiff',
+  '.woff', '.woff2', '.ttf', '.eot', '.otf',
+  '.mp4', '.mp3', '.wav', '.ogg', '.webm', '.avi', '.mov',
+  '.zip', '.tar', '.gz', '.rar', '.7z', '.bz2',
+  '.map', '.log', '.lock',
+  '.bin', '.exe', '.dll', '.so', '.dylib', '.a', '.o',
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.sqlite', '.db',
+])
+
+const SKIP_FILES_FULL = new Set([
+  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb',
+  '.DS_Store', 'Thumbs.db', 'desktop.ini',
+])
+
+const PEEK_NAME_PATTERNS = [
+  /^(main|index|app)\.(ts|js|mjs|tsx|jsx)$/i,
+  /^App\.(vue|tsx|jsx|svelte)$/,
+  /^use[A-Z].+\.(ts|js)$/,
+  /\.store\.(ts|js)$/,
+  /\.service\.(ts|js)$/,
+  /\.slice\.(ts|js|tsx)$/,
+  /^(router|routes?)\.(ts|js)$/,
+]
+
+const PEEK_PATH_PATTERNS = [
+  /\/router\//,
+  /\/stores?\//,
+  /\/composables\//,
+  /\/hooks\//,
+  /\/server\/api\//,
+  /\/server\/utils?\//,
+  /\/services?\//,
+]
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -483,17 +523,235 @@ function getGitStatus(root) {
   } catch { return [] }
 }
 
+// ---------------------------------------------------------------------------
+// Full-scan helpers
+// ---------------------------------------------------------------------------
+
+function fileRole(relPath, name, ext) {
+  const p = relPath.replace(/\\/g, '/')
+  const lower = name.toLowerCase()
+
+  // Tests — check early to avoid mis-labelling
+  if (/\.(test|spec)\.(ts|js|tsx|jsx|mjs)$/.test(name)) return 'Test'
+  if (p.includes('/__tests__/') || p.includes('/test/') || p.includes('/tests/') || p.includes('/spec/') || p.includes('/e2e/')) return 'Test'
+
+  // Type definitions
+  if (name.endsWith('.d.ts')) return 'Type definition'
+
+  // Config files
+  if (/^(vite|nuxt|next|svelte|astro|tailwind|postcss|babel|jest|vitest|eslint|prettier|rollup|webpack|esbuild)\.config/i.test(lower)) return 'Config'
+  if (/^(tsconfig|jsconfig)/.test(lower) && ext === '.json') return 'Config'
+  if (/^\.(eslintrc|prettierrc|babelrc|stylelintrc|browserslistrc)/.test(name)) return 'Config'
+  if (lower === '.env.example' || lower === '.env.local.example') return 'Env template'
+  if (/^\.env/.test(name)) return 'Environment'
+  if (/\.(config|rc)\.(ts|js|mjs|cjs)$/.test(name)) return 'Config'
+
+  // Entry points
+  if (/^(main|index)\.(ts|js|mjs|cjs|tsx|jsx)$/.test(name)) return 'Entry point'
+  if (/^App\.(vue|tsx|jsx|svelte)$/.test(name)) return 'Root component'
+
+  // Styles
+  if (['.css', '.scss', '.sass', '.less', '.styl', '.pcss'].includes(ext)) return 'Styles'
+
+  // Vue components
+  if (ext === '.vue') {
+    if (p.includes('/pages/') || p.includes('/views/')) return 'Page'
+    if (p.includes('/layouts/') || lower.includes('layout')) return 'Layout'
+    return 'Component'
+  }
+
+  // Svelte / Astro
+  if (ext === '.svelte') return p.includes('/routes/') ? 'Route' : 'Component'
+  if (ext === '.astro') return p.includes('/pages/') ? 'Page' : 'Component'
+
+  // TSX / JSX
+  if (ext === '.tsx' || ext === '.jsx') {
+    if (p.includes('/pages/') || p.includes('/app/')) return 'Page'
+    if (p.includes('/components/') || /^[A-Z]/.test(name)) return 'Component'
+  }
+
+  // Composables / hooks
+  if (/^use[A-Z]/.test(name)) return p.includes('/hooks/') ? 'Hook' : 'Composable'
+
+  // Stores
+  if (p.includes('/stores/') || p.includes('/store/')) return 'Store'
+  if (/\.store\.(ts|js)$/.test(name)) return 'Store'
+  if (/[Ss]lice\.(ts|js|tsx)$/.test(name)) return 'Redux slice'
+
+  // Router
+  if (p.includes('/router/')) return lower === 'index.ts' || lower === 'index.js' ? 'Router config' : 'Route'
+  if (lower === 'router.ts' || lower === 'router.js') return 'Router config'
+
+  // API routes
+  if (p.includes('/server/api/') || p.includes('/pages/api/') || p.includes('/app/api/')) return 'API route'
+
+  // Server
+  if (p.includes('/server/utils/') || p.includes('/server/helpers/')) return 'Server utility'
+  if (p.includes('/server/middleware/') || p.includes('/middleware/')) return 'Middleware'
+  if (p.includes('/server/plugins/') || p.includes('/plugins/')) return 'Plugin'
+
+  // Models / schemas / DB
+  if (p.includes('/models/') || p.includes('/entities/')) return 'Model'
+  if (p.includes('/migrations/')) return 'Migration'
+  if (lower.includes('schema') && ['.ts', '.js', '.prisma', '.graphql'].includes(ext)) return 'Schema'
+  if (p.includes('/db') && (lower === 'seed.ts' || lower === 'seed.js')) return 'DB seed'
+
+  // Services
+  if (p.includes('/services/') || /\.service\.(ts|js)$/.test(name)) return 'Service'
+
+  // Utils / helpers / lib
+  if (p.includes('/utils/') || p.includes('/helpers/') || p.includes('/util/')) return 'Utility'
+  if (p.includes('/lib/')) return 'Library'
+  if (p.includes('/constants/') || lower.includes('constants')) return 'Constants'
+
+  // Docs
+  if (ext === '.md' || ext === '.mdx') return 'Documentation'
+
+  // Data / config files
+  if (ext === '.json') return 'Data'
+  if (ext === '.yaml' || ext === '.yml') return 'Config'
+  if (ext === '.graphql' || ext === '.gql') return 'GraphQL'
+  if (ext === '.prisma') return 'Prisma schema'
+  if (ext === '.sql') return 'SQL'
+  if (ext === '.sh' || ext === '.bash') return 'Script'
+
+  return null
+}
+
+function shouldPeek(relPath, name) {
+  return PEEK_NAME_PATTERNS.some((p) => p.test(name)) ||
+    PEEK_PATH_PATTERNS.some((p) => p.test(relPath))
+}
+
+function peekContent(fullPath) {
+  let text
+  try {
+    text = readFileSync(fullPath, 'utf8').slice(0, 3000)
+  } catch { return null }
+
+  const notes = []
+
+  // Component name
+  const cName = text.match(/\bname\s*:\s*['"]([A-Za-z][A-Za-z0-9-]+)['"]/)?.[1]
+  if (cName) notes.push(`name: ${cName}`)
+
+  // defineProps — extract prop names
+  const propsMatch = text.match(/defineProps[<(][^;]{0,400}?\{([^}]{0,300})\}/s)
+  if (propsMatch) {
+    const props = [...propsMatch[1].matchAll(/\b([a-z][a-zA-Z0-9]*)\s*[?:]/g)]
+      .map((m) => m[1]).filter((p) => p !== 'type').slice(0, 5)
+    if (props.length) notes.push(`props: ${props.join(', ')}`)
+  }
+
+  // defineEmits
+  const emitsMatch = text.match(/defineEmits[^;]{0,100}?\[([^\]]{0,200})\]/s)
+  if (emitsMatch) {
+    const emits = [...emitsMatch[1].matchAll(/['"]([a-z][a-zA-Z0-9:'-]*)['"]/g)]
+      .map((m) => m[1]).slice(0, 4)
+    if (emits.length) notes.push(`emits: ${emits.join(', ')}`)
+  }
+
+  // Pinia defineStore
+  const storeName = text.match(/defineStore\s*\(\s*['"]([^'"]+)['"]/)?.[1]
+  if (storeName) notes.push(`store: ${storeName}`)
+
+  // Named exports (functions / consts / classes)
+  const namedExports = [...text.matchAll(/^export (?:async )?(?:function|const|class) ([A-Za-z][A-Za-z0-9_]*)/gm)]
+    .map((m) => m[1]).slice(0, 4)
+  if (namedExports.length) notes.push(`exports: ${namedExports.join(', ')}`)
+
+  // HTTP method from filename (Nuxt/Next conventions: user.get.ts)
+  const httpMethod = fullPath.replace(/\\/g, '/').match(/\.(get|post|put|patch|delete)\.(ts|js)$/i)?.[1]?.toUpperCase()
+  if (httpMethod) notes.push(httpMethod)
+
+  // defineEventHandler without explicit method in filename
+  if (!httpMethod && /defineEventHandler|eventHandler/.test(text)) notes.push('handler')
+
+  // Vue Router: count route definitions
+  const routeCount = (text.match(/\bpath\s*:/g) || []).length
+  if (routeCount > 1) notes.push(`${routeCount} routes`)
+
+  return notes.length ? notes.join(' · ') : null
+}
+
+function walkFull(root, dir, result, depth) {
+  if (dir === undefined) dir = root
+  if (result === undefined) result = []
+  if (depth === undefined) depth = 0
+  if (depth > 8) return result
+
+  let entries
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch { return result }
+
+  for (const entry of entries) {
+    if (SKIP_DIRS.has(entry.name)) continue
+
+    const fullPath = join(dir, entry.name)
+
+    if (entry.isDirectory()) {
+      if (entry.name.startsWith('.')) continue
+      walkFull(root, fullPath, result, depth + 1)
+    } else if (entry.isFile()) {
+      if (SKIP_FILES_FULL.has(entry.name)) continue
+      const ext = extname(entry.name).toLowerCase()
+      if (SKIP_EXTENSIONS_FULL.has(ext)) continue
+      if (entry.name.startsWith('.') && !entry.name.startsWith('.env')) continue
+
+      const relPath = relative(root, fullPath).replace(/\\/g, '/')
+      result.push({ path: relPath, name: entry.name, ext, fullPath })
+    }
+  }
+
+  return result
+}
+
+const TOP_DIR_ORDER = [
+  'src', 'app', 'pages', 'components', 'composables', 'hooks', 'stores',
+  'server', 'api', 'lib', 'utils', 'helpers', 'services',
+  'db', 'docs', 'tests', 'test', '__tests__', 'scripts', 'config',
+]
+
+function buildFullStructure(root, files) {
+  const dirs = new Map()
+
+  for (const file of files) {
+    const parts = file.path.split('/')
+    const topDir = parts.length > 1 ? parts[0] : '.'
+    if (!dirs.has(topDir)) dirs.set(topDir, [])
+
+    const role = fileRole(file.path, file.name, file.ext)
+    const notes = shouldPeek(file.path, file.name) ? peekContent(file.fullPath) : null
+    dirs.get(topDir).push({ path: file.path, name: file.name, role: role || '—', notes: notes || '' })
+  }
+
+  return [...dirs.entries()]
+    .sort(([a], [b]) => {
+      const ai = TOP_DIR_ORDER.indexOf(a)
+      const bi = TOP_DIR_ORDER.indexOf(b)
+      if (ai !== -1 && bi !== -1) return ai - bi
+      if (ai !== -1) return -1
+      if (bi !== -1) return 1
+      return a.localeCompare(b)
+    })
+    .map(([dir, dirFiles]) => ({ dir, files: dirFiles }))
+}
+
 /**
- * scan(root, info) — deep analysis pass. Returns model with zones, keyFiles, health, gitStatus.
- * Only call this for DEFINED or EXISTING projects.
+ * scan(root, info) — deep analysis pass. Returns model with zones, keyFiles, health, gitStatus, structure.
  */
 export function scan(root, info) {
+  const allFiles = walkFull(root)
+  const structure = buildFullStructure(root, allFiles)
+
   return {
     ...info,
     zones:     detectZones(root),
     keyFiles:  detectKeyFiles(root, info),
     health:    collectHealthSignals(root),
     gitStatus: getGitStatus(root),
+    structure,
     scannedAt: new Date().toISOString(),
   }
 }

@@ -64,18 +64,38 @@ function buildStackBlock(model) {
 function buildStructureBlock(model) {
   const lines = ['## Project Structure', '']
 
-  if (model.zones && model.zones.length) {
-    lines.push('### Zones', '', '| Zone | Path | Source files |', '|------|------|-------------|')
-    for (const z of model.zones) {
-      lines.push(`| ${z.label} | \`${z.path}/\` | ${z.fileCount ?? '—'} |`)
-    }
-    lines.push('')
-  }
+  if (model.structure && model.structure.length > 0) {
+    // Full scan available — render per-directory tables
+    let totalFiles = 0
+    for (const { files } of model.structure) totalFiles += files.length
+    const dirCount = model.structure.length
+    lines.push(`**${totalFiles} file${totalFiles !== 1 ? 's' : ''} across ${dirCount} director${dirCount !== 1 ? 'ies' : 'y'}**`, '')
 
-  if (model.keyFiles && model.keyFiles.length) {
-    lines.push('### Key Files', '', '| File | Role |', '|------|------|')
-    for (const f of model.keyFiles) {
-      lines.push(`| \`${f.path}\` | ${f.role} |`)
+    for (const { dir, files } of model.structure) {
+      const label = dir === '.' ? 'Root' : `${dir}/`
+      lines.push(`### ${label} (${files.length} file${files.length !== 1 ? 's' : ''})`, '')
+      lines.push('| File | Role | Notes |', '|------|------|-------|')
+      for (const f of files) {
+        const display = dir === '.' ? f.path : f.path.slice(dir.length + 1)
+        lines.push(`| \`${display}\` | ${f.role} | ${f.notes} |`)
+      }
+      lines.push('')
+    }
+  } else {
+    // Fallback for DEFINED / EMPTY — zones + key files
+    if (model.zones && model.zones.length) {
+      lines.push('### Zones', '', '| Zone | Path | Source files |', '|------|------|-------------|')
+      for (const z of model.zones) {
+        lines.push(`| ${z.label} | \`${z.path}/\` | ${z.fileCount ?? '—'} |`)
+      }
+      lines.push('')
+    }
+
+    if (model.keyFiles && model.keyFiles.length) {
+      lines.push('### Key Files', '', '| File | Role |', '|------|------|')
+      for (const f of model.keyFiles) {
+        lines.push(`| \`${f.path}\` | ${f.role} |`)
+      }
     }
   }
 
